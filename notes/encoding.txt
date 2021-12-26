@@ -11,21 +11,24 @@ Considering the Forsyth-Edwards Notation (FEN), the internal representation of a
 	White Queen - WQ : 10011 19 13
 	White King - WK : 10100 20 14
 	White Pawn - WP : 10101 21 15
-	Black Rook - BR : 10110 22 16
-	Black Knight - BN : 10111 23 17
-	Black Bishop - BB : 11000 24 18
-	Black Queen - BQ : 11001 25 19
-	Black King - BK : 11010 26 1A
-	Black Bishop - BP : 11011 27 1B
+	Black Rook - BR : 11000 22 16
+	Black Knight - BN : 11001 23 17
+	Black Bishop - BB : 11010 24 18
+	Black Queen - BQ : 11011 25 19
+	Black King - BK : 11100 26 1A
+	Black Pawn - BP : 11101 27 1B
 	}
 
 	The code of the pieces starts with 10000 (bin) for convinience related with the compressing format.
 	
 2. Active color: felt (1) {coding: White: 0; Black: 1}
 
-3. Castling: felt (1) {coding: K:first bit, Q: second bit, k: third bit, q: fourth bit}
+3.1 Castling K: felt (1) {coding: Not Allowed: 0; Allowed: 1}
+3.2 Castling Q: felt (1) {coding: Not Allowed: 0; Allowed: 1}
+3.3 Castling k: felt (1) {coding: Not Allowed: 0; Allowed: 1}
+3.4 Castling q: felt (1) {coding: Not Allowed: 0; Allowed: 1}
 
-4. En passant: felt(1) {coding: row (a-h: 0-7) + side (q-k: 0 or 8) = (0-15)}
+4 En passant: felt(1) {coding: column of the move (0-8): 8=None, 0-7=Row}
 
 5. Half-move clock: felt (1)
 
