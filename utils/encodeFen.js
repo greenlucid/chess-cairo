@@ -50,11 +50,11 @@ const encodePassant = (passant) => passantToCode[passant[0]]
 
 // what if the other player didn't force a draw?
 // this is potentially infinite
-// just treat it as 10 bits in the initial state
+// just treat it as 7 bits in the initial state
 // at contract level the sky's the limit
 const encodeHalfmoveClock = (halfmoveClock) => {
   const bin = halfmoveClock.toString(2)
-  const padding = "0".repeat(8 - bin.length)
+  const padding = "0".repeat(7 - bin.length)
   return `${padding}${bin}`
 }
 
