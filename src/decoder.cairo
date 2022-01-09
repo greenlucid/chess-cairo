@@ -13,7 +13,6 @@ from contracts.bit_helper import {
 }
 
 func decode_pos(encoded_state : felt, arr : felt*, offset : felt, size : felt) -> (offset : felt):
-    # if size === 0, escape with offset you've received!
     if size == 0:
         return (offset=offset)
     end

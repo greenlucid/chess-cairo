@@ -22,3 +22,10 @@ func bit_at(el : felt, offset : felt) -> (bit : felt):
     end
     return (bit=1)
 end
+
+func append_bits(pre : felt, offset : felt, el : felt, size : felt) -> (result : felt):
+    let distance = 251 - offset - size
+    let (multiplier) = pow(2, distance)
+    let result = pre + multiplier * el
+    return (result=result)
+end
