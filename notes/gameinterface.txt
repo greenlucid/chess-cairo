@@ -1,0 +1,30 @@
+How could the general game interface work:
+
+-> view all finality states of game
+-> view finality of current state
+-> view current state (full)
+-> view array of players (addresses)
+-> view count of players
+-> view current player (the index, not the address itself, because players could repeat)
+-> view list of legal moves
+
+# Open Questions
+
+Should we encode surrendering as a move?
+That could abstract the logic further and make it easier to interface with other games.
+Chess would not "agree" that that's a chess move, but the way the interface treats moves is different than chess.
+Don't do this for now, wait until we have more info on other games and if this would be useful or not
+
+Should we encode the "finality" into the "current state"? Or leave it separate?
+I lean towards keeping it separate.
+
+Should we separate, include, etc the count of plys?
+No opinion, so I rather not include it.
+
+Should we abstract the notion of player?
+By having an array of felts (addresses) to index players.
+The alternative is keeping track of white and black as two felts.
+
+Should we ditch the idea of the arbiter?
+I think it would be pretty useful for letting other external conditions (time, other rules, etc) be able to decide the outcome, optionally.
+And you could do this more complex behaviour like time keeping with a wrapper contract that takes care of it, and also respects the game interface itself.
