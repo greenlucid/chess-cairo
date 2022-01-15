@@ -28,3 +28,16 @@ The alternative is keeping track of white and black as two felts.
 Should we ditch the idea of the arbiter?
 I think it would be pretty useful for letting other external conditions (time, other rules, etc) be able to decide the outcome, optionally.
 And you could do this more complex behaviour like time keeping with a wrapper contract that takes care of it, and also respects the game interface itself.
+
+-----
+
+Some other thoughts I had.
+Getting the current state of the game is probably not feasible,
+because the full state is unbounded. So, for games like chess,
+you should make a distinction between parts of state that are
+bounded (like the "state" as we refer in the contract), which
+is the state that the contract will return and usually deal with.
+
+And you can have other extra, non-interface features for unbounded
+state. Still, more experience with building other games is necessary
+to get the feel of what would make an useful interface and what not.
