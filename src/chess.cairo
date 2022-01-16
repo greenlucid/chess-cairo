@@ -3,6 +3,10 @@
 %builtins pedersen range_check
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
+from starkware.cairo.common.math import {
+    assert_lt
+    assert_le
+}
 
 from contracts.state import {
     State
@@ -14,6 +18,7 @@ from contracts.decoder import {
 
 from contracts.encoder import {
     encode_state
+    encode_board_state
 }
 
 @storage_var
@@ -167,15 +172,27 @@ end
 
 @external
 func draw_threefold_repetition(a : felt, b : felt, c : felt) -> ():
-    # big todo. wrote something about how to do this, but lost it.
+    alloc_locals
     let (current_finality) = finality.read()
     assert current_finality == 0
-    # assert sender is black or white
+    # todo assert sender is black or white
     # assert a < b; b < c; c < n_moves
-    # let f be a func to get encoded x, that is rightshifted by enough bits
-    # to get all bits except the clocks
-    # assert f(a) == f(b); f(b) == f(c)
+    let (n) = move_counter(i=0)
+    assert_lt(a, b)
+    assert_lt(b, c)
+    assert_lt(c, n)
 
+    let (encoded_state) = initial_state.read()
+    let (first_state) = decode_state(encoded_state)
+    let (state_a) = state_advancer(state=first_state, curr=0, remain=a)
+    let (local fa) = encode_board_state(state_a)
+    let (state_b) = state_advancer(state=first_state, curr=0, remain=b)
+    let (local fb) = encode_board_state(state_b)
+    let (state_c) = state_advancer(state=first_state, curr=0, remain=c)
+    let (local fb) = encode_board_state(state_c)
+
+    assert fa == fb
+    assert fb == fc
     finality.write(3)
     return ()
 end
@@ -187,6 +204,8 @@ func draw_fifty_moves() -> ():
     # assert that sender is black or white
     let (state) = actual_state()
     # assert that state.halfmove_clock is >= 100
+    let halfmove_clock = state.halfmove_clock
+    assert_le(100, halfmove_clock)
     finality.write(3)
     return ()
 end
