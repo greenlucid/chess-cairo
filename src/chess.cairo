@@ -1,7 +1,5 @@
 %lang starknet
 
-%builtins pedersen range_check
-
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.math import {
     assert_lt
@@ -21,16 +19,15 @@ from contracts.encoder import {
     encode_board_state
 }
 
-@storage_var
-func white() -> (address : felt):
-end
+from starkware.starknet.common.syscalls import {
+    get_contract_address
+}
 
+# 0 is white
+# 1 is black
+# 2 is governor
 @storage_var
-func black() -> (address : felt):
-end
-
-@storage_var
-func arbitrator() -> (address : felt):
+func players(color : felt) -> (address : felt):
 end
 
 @storage_var
@@ -48,11 +45,20 @@ end
 func finality() -> (status : felt):
 end
 
+# The turn (ply) in which a side offers a draw
+# If a side proposes draw and the other side had this flag set at
+# the current turn, finalize game as a draw.
+# Otherwise, set flag.
+# You cannot draw at turn 0.
+# Side 0 is white, whereas side 1 is black.
+@storage_var
+func draw_offer(color : felt) -> (ply : felt):
+end
+
 # So, you don't actually need to store how many moves there are.
 # You can find this dynamically
 # Because the move 0x0 is illegal. So, just iterate until you find a zero
 # And when you find it, return that i.
-
 func move_counter(i : felt) -> (count : felt):
     let (move) = moves.read(i)
     if move == 0:
@@ -90,6 +96,29 @@ func actual_state() -> (state : felt):
     return (state=state)
 end
 
+func assert_sender_is(color : felt) -> ():
+    let (sender) = get_contract_address()
+    let (governor) = players.read(color)
+    assert governor == sender
+    return ()
+end
+
+func assert_pending() -> ():
+    let (current_finality) = finality.read()
+    assert current_finality == 0
+    return ()
+end
+
+func other_player(player : felt) -> (other : felt):
+    if player == 0:
+        return (other=1)
+    end
+    if player == 1:
+        return (other=0)
+    end
+    return (other=2)
+end 
+
 # VIEW FUNCS
 
 @view
@@ -122,12 +151,13 @@ end
 # EXTERNALS
 
 @external
-func make_move(move : felt) -> ():
-    let (current_finality) = finality.read()
-    assert current_finality == 0
-    let (state) = actual_state()
-    # TODO Get active_color. Depending on the color, get an address.
-    # and validate that msg.sender is that address
+func make_move(move : felt, as_player : felt) -> ():
+    alloc_locals
+    assert_pending()
+    assert_sender_is(as_player)
+    let (local state) = actual_state()
+    assert as_player == state.active_color
+    
     # TODO Get list of possible moves
     # TODO iterate through and check if move is in the list
     # After asserting all this:
@@ -143,39 +173,59 @@ end
 # this argument could be made to most funcs below.
 @external
 func force_finality(forced_finality : felt) -> ():
-    # todo verify sender is arbitrator
-    let (current_finality) = finality.read()
-    assert current_finality == 0
+    assert_pending()
+    assert_sender_is(2)
     finality.write(forced_finality)
+    # todo assert that forced_finality <= 3
     return ()
 end
 
 @external
-func surrender() -> ():
-    let (current_finality) = finality.read()
-    assert current_finality == 0
-    # see sender.
-    # check if sender is white
-    # if so, finality <- 2
-    # otherwise, check if sender is black
-    # if so, finality <- 1
-    # otherwise
-    # finality <- 0 (status quo)
+func surrender(as_player : felt) -> ():
+    assert_pending()
+    assert_sender_is(as_player)
+    # governor shouldn't call this
+    assert as_player != 2
+    if as_player == 0: 
+        # white surrendered
+        finality.write(2)
+        return ()
+    end
+    # black surrendered
+    finality.write(1)
     return ()
 end
 
 @external
-func offer_draw() -> ():
-    # big todo. this will need a storage_var flag somewhere.
+func offer_draw(as_player : felt) -> ():
+    assert_pending()
+    assert_sender_is(as_player)
+    # governor shouldn't call this
+    assert as_player != 2
+    # check if other player already offered
+    let (other) = other_player(as_player)
+    let (move_count) = move_counter(i=0)
+    # drawing at move 0 is banned
+    assert move_count != 0
+    let (other_offer) = draw_offer.read(other)
+    if move_count == other_offer:
+        # both sides just agreed to a draw.
+        finality.write(3)
+        return ()
+    end
+    # that means caller is first to propose draw this turn.
+    draw_offer.write(as_player, move_count)
     return ()
 end
 
 @external
-func draw_threefold_repetition(a : felt, b : felt, c : felt) -> ():
+func draw_threefold_repetition(as_player : felt, a : felt, b : felt, c : felt) -> ():
     alloc_locals
-    let (current_finality) = finality.read()
-    assert current_finality == 0
-    # todo assert sender is black or white
+    assert_pending()
+    assert_sender_is(as_player)
+    # governor shouldn't call this
+    assert as_player != 2
+
     # assert a < b; b < c; c < n_moves
     let (n) = move_counter(i=0)
     assert_lt(a, b)
@@ -198,10 +248,12 @@ func draw_threefold_repetition(a : felt, b : felt, c : felt) -> ():
 end
 
 @external
-func draw_fifty_moves() -> ():
-    let (current_finality) = finality.read()
-    assert current_finality == 0
-    # assert that sender is black or white
+func draw_fifty_moves(as_player : felt) -> ():
+    assert_pending()
+    asser_sender_is(as_player)
+    # governor shouldn't call this
+    assert as_player != 2
+
     let (state) = actual_state()
     # assert that state.halfmove_clock is >= 100
     let halfmove_clock = state.halfmove_clock
@@ -210,19 +262,13 @@ func draw_fifty_moves() -> ():
     return ()
 end
 
-# constructed with white, black, arbiter, initial_state to storage.
+# constructed with white, black, governor, initial_state to storage.
 @constructor
 func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
-        range_check_ptr}(_white : felt, _black : felt, _arbitrator : felt, _initial_state : felt):
-    white.write(_white)
-    black.write(_black)
-    arbitrator.write(_arbitrator)
+        range_check_ptr}(_white : felt, _black : felt, _governor : felt, _initial_state : felt):
+    players.write(0, _white)
+    players.write(1, _black)
+    players.write(2, _governor)
     initial_state.write(_initial_state)
     return ()
 end
-
-# TODOS
-# make func for "a is b, is c, or none?", useful for a few funcs
-# actually, be careful. what if white and black are the exact same?
-# then you can't call surrender. (but again, why would you surrender against yourself?)
-# just to deal with that case, make sender use an arg to explain who they are.
