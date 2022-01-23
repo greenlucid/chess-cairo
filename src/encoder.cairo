@@ -1,5 +1,6 @@
 %lang starknet
 
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.pow import pow
 
@@ -12,7 +13,10 @@ from contracts.bit_helper import {
     bits_at
 }
 
-func encode_pos(encoded_state : felt, offset : felt, arr : felt*, size : felt) -> (encoded_state : felt, offset : felt):
+func encode_pos{
+        range_check_ptr
+        }(encoded_state : felt, offset : felt, arr : felt*, size : felt) ->
+        (encoded_state : felt, offset : felt):
     alloc_locals
     if size == 0:
         return (encoded_state, offset)
@@ -31,7 +35,9 @@ func encode_pos(encoded_state : felt, offset : felt, arr : felt*, size : felt) -
     return (encoded_state=returned_state, offset=offset)
 end
 
-func encode_state(state : State) -> (encoded_state : felt):
+func encode_state{
+        range_check_ptr
+        }(state : State) -> (encoded_state : felt):
     alloc_locals
     # state.pos prob doesn't exist, figure this out
     let (pos_state, local pos_offset) = encode_pos(encoded_state=0, offset=0, arr=state.pos, size=64)
@@ -48,7 +54,9 @@ func encode_state(state : State) -> (encoded_state : felt):
     return (encoded_state=fullmove_state)
 end
 
-func encode_board_state(state: State) -> (encoded_board_state : felt):
+func encode_board_state{
+        bitwise_ptr : BitwiseBuiltin*, range_check_ptr
+        }(state: State) -> (encoded_board_state : felt):
     alloc_locals
     let (pos_state, local pos_offset) = encode_pos(encoded_state=0, offset=0, arr=state.pos, size=64)
     let size = pos_offset + 9

@@ -1,6 +1,7 @@
 %lang starknet
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.math import {
     assert_lt
     assert_le
@@ -23,6 +24,7 @@ from starkware.starknet.common.syscalls import {
     get_contract_address
 }
 
+# todo can you use const at this level? e.g. const WHITE = 0
 # 0 is white
 # 1 is black
 # 2 is governor
@@ -55,18 +57,6 @@ end
 func draw_offer(color : felt) -> (ply : felt):
 end
 
-# So, you don't actually need to store how many moves there are.
-# You can find this dynamically
-# Because the move 0x0 is illegal. So, just iterate until you find a zero
-# And when you find it, return that i.
-func move_counter(i : felt) -> (count : felt):
-    let (move) = moves.read(i)
-    if move == 0:
-        return (count=i)
-    end
-    let (count) = move_counter(i+1)
-    return (count=count)
-end
 
 # Filler funcs. Substitute them when we get the proper funcs
 
@@ -77,7 +67,10 @@ end
 
 # Helper funcs
 
-func state_advancer(state : State, curr : felt, remain : felt) -> (final_state : State):
+func state_advancer{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+        }(state : State, curr : felt, remain : felt) -> (final_state : State):
     if remain == 0:
         return (final_state=state)
     end
@@ -88,7 +81,9 @@ func state_advancer(state : State, curr : felt, remain : felt) -> (final_state :
     return (final_state=final_state)
 end
 
-func actual_state() -> (state : felt):
+func actual_state{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+        bitwise_ptr : BitwiseBuiltin*, range_check_ptr}() -> (state : felt):
     let (encoded_state) = initial_state.read()
     let (first_state) = decode_state(encoded_state)
     let (n) = n_moves()
@@ -96,14 +91,18 @@ func actual_state() -> (state : felt):
     return (state=state)
 end
 
-func assert_sender_is(color : felt) -> ():
+func assert_sender_is{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+        range_check_ptr}(color : felt) -> ():
     let (sender) = get_contract_address()
     let (governor) = players.read(color)
     assert governor == sender
     return ()
 end
 
-func assert_pending() -> ():
+func assert_pending{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+        range_check_ptr}() -> ():
     let (current_finality) = finality.read()
     assert current_finality == 0
     return ()
@@ -117,33 +116,53 @@ func other_player(player : felt) -> (other : felt):
         return (other=0)
     end
     return (other=2)
-end 
+end
+
+# So, you don't actually need to store how many moves there are.
+# The move 0x0 is illegal. Just iterate until you find a zero
+func move_counter{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+        range_check_ptr}(i : felt) -> (count : felt):
+    let (move) = moves.read(i)
+    if move == 0:
+        return (count=i)
+    end
+    let (count) = move_counter(i+1)
+    return (count=count)
+end
 
 # VIEW FUNCS
 
 @view
-func current_state{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
-        range_check_ptr}() -> (state : felt):
+func current_state{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+        bitwise_ptr : BitwiseBuiltin*, range_check_ptr}() -> (state : felt):
     let (state) = actual_state()
     let (encoded_state) = encode_state(state)
     return (state=encoded_state)
 end
 
 @view
-func n_moves() -> (count : felt):
+func n_moves{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+        range_check_ptr}() -> (count : felt):
     let (count) = move_counter(i=0)
     return (count=count)
 end
 
 # Use this (with n calls) to see the game history in frontend
 @view
-func move_at(i : felt) -> (move : felt):
+func move_at{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+        range_check_ptr}(i : felt) -> (move : felt):
     let (move) = moves.read(i)
     return (move)
 end
  
 @view
-func get_finality() -> (finality : felt):
+func get_finality{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+        range_check_ptr}() -> (finality : felt):
     let (status) = finality.read()
     return (finality=status)
 end
@@ -151,7 +170,10 @@ end
 # EXTERNALS
 
 @external
-func make_move(move : felt, as_player : felt) -> ():
+func make_move{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+        bitwise_ptr : BitwiseBuiltin*, range_check_ptr
+        }(move : felt, as_player : felt) -> ():
     alloc_locals
     assert_pending()
     assert_sender_is(as_player)
@@ -168,11 +190,10 @@ func make_move(move : felt, as_player : felt) -> ():
 end
 
 # For when finality is known due to external factors. e.g. timeout
-# A cleaner way would be to not have this feature
-# let the wrapper contract deal with it, and let chess.cairo be pure.
-# this argument could be made to most funcs below.
 @external
-func force_finality(forced_finality : felt) -> ():
+func force_finality{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+        range_check_ptr}(forced_finality : felt) -> ():
     assert_pending()
     assert_sender_is(2)
     finality.write(forced_finality)
@@ -181,7 +202,9 @@ func force_finality(forced_finality : felt) -> ():
 end
 
 @external
-func surrender(as_player : felt) -> ():
+func surrender{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+        range_check_ptr}(as_player : felt) -> ():
     assert_pending()
     assert_sender_is(as_player)
     # governor shouldn't call this
@@ -197,7 +220,9 @@ func surrender(as_player : felt) -> ():
 end
 
 @external
-func offer_draw(as_player : felt) -> ():
+func offer_draw{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+        range_check_ptr}(as_player : felt) -> ():
     assert_pending()
     assert_sender_is(as_player)
     # governor shouldn't call this
@@ -219,7 +244,10 @@ func offer_draw(as_player : felt) -> ():
 end
 
 @external
-func draw_threefold_repetition(as_player : felt, a : felt, b : felt, c : felt) -> ():
+func draw_threefold_repetition{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+        bitwise_ptr : BitwiseBuiltin*, range_check_ptr
+        }(as_player : felt, a : felt, b : felt, c : felt) -> ():
     alloc_locals
     assert_pending()
     assert_sender_is(as_player)
@@ -248,7 +276,10 @@ func draw_threefold_repetition(as_player : felt, a : felt, b : felt, c : felt) -
 end
 
 @external
-func draw_fifty_moves(as_player : felt) -> ():
+func draw_fifty_moves{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+        bitwise_ptr : BitwiseBuiltin*, range_check_ptr
+        }(as_player : felt) -> ():
     assert_pending()
     asser_sender_is(as_player)
     # governor shouldn't call this
@@ -264,7 +295,8 @@ end
 
 # constructed with white, black, governor, initial_state to storage.
 @constructor
-func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+func constructor{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
         range_check_ptr}(_white : felt, _black : felt, _governor : felt, _initial_state : felt):
     players.write(0, _white)
     players.write(1, _black)

@@ -1,5 +1,6 @@
 %lang starknet
 
+from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.pow import pow
 
@@ -12,7 +13,9 @@ from contracts.bit_helper import {
     bit_at
 }
 
-func decode_pos(encoded_state : felt, arr : felt*, offset : felt, size : felt) -> (offset : felt):
+func decode_pos{
+        bitwise_ptr : BitwiseBuiltin*, range_check_ptr
+        }(encoded_state : felt, arr : felt*, offset : felt, size : felt) -> (offset : felt):
     if size == 0:
         return (offset=offset)
     end
@@ -32,12 +35,16 @@ func decode_pos(encoded_state : felt, arr : felt*, offset : felt, size : felt) -
     return (offset=new_offset)
 end
 
-func decode_active_color(encoded_state : felt, offset : felt) -> (active_color : felt):
+func decode_active_color{
+        bitwise_ptr : BitwiseBuiltin*, range_check_ptr
+        }(encoded_state : felt, offset : felt) -> (active_color : felt):
     let (bit) = bit_at(el=encoded_state, offset=offset)
     return (color=bit)
 end
 
-func decode_state(encoded_state : felt) -> (state : State):
+func decode_state{
+        bitwise_ptr : BitwiseBuiltin*, range_check_ptr
+        }(encoded_state : felt) -> (state : State):
     alloc_locals
     let (positions) = alloc()
     let (local pos_offset) = decode_pos(encoded_state, arr=positions, offset=0, size=64)
