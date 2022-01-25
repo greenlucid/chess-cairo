@@ -5,6 +5,8 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.math import {
     assert_lt
     assert_le
+    assert_not_equal
+    assert_not_zero
 }
 
 from contracts.state import {
@@ -24,10 +26,10 @@ from starkware.starknet.common.syscalls import {
     get_contract_address
 }
 
-# todo can you use const at this level? e.g. const WHITE = 0
-# 0 is white
-# 1 is black
-# 2 is governor
+const WHITE = 0
+const BLACK = 1
+const GOVERNOR = 2
+
 @storage_var
 func players(color : felt) -> (address : felt):
 end
@@ -40,9 +42,11 @@ end
 func moves(i : felt) -> (move : felt):
 end
 
-# Understanding finality:
-# To keep things simple, the value of this storage_var is the finality.
-# 0 is PENDING, 1 is WHITE_WIN, 2 is BLACK_WIN, 3 is DRAW
+const PENDING = 0
+const WHITE_WIN = 1
+const BLACK_WIN = 2
+const DRAW = 3
+
 @storage_var
 func finality() -> (status : felt):
 end
@@ -96,7 +100,7 @@ func assert_sender_is{
         range_check_ptr}(color : felt) -> ():
     let (sender) = get_contract_address()
     let (governor) = players.read(color)
-    assert governor == sender
+    assert governor = sender
     return ()
 end
 
@@ -104,18 +108,26 @@ func assert_pending{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
         range_check_ptr}() -> ():
     let (current_finality) = finality.read()
-    assert current_finality == 0
+    assert current_finality = PENDING
     return ()
 end
 
 func other_player(player : felt) -> (other : felt):
-    if player == 0:
-        return (other=1)
+    if player == WHITE:
+        return (other=BLACK)
     end
-    if player == 1:
-        return (other=0)
+    if player == BLACK:
+        return (other=WHITE)
     end
-    return (other=2)
+    return (other=GOVERNOR)
+end
+
+func regular_player_asserts{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+        range_check_ptr}(as_player : felt) -> ():
+    assert_pending()
+    assert_sender_is(as_player)
+    assert_not_equal(as_player, GOVERNOR)
 end
 
 # So, you don't actually need to store how many moves there are.
@@ -175,10 +187,9 @@ func make_move{
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr
         }(move : felt, as_player : felt) -> ():
     alloc_locals
-    assert_pending()
-    assert_sender_is(as_player)
+    regular_player_asserts(as_player)
     let (local state) = actual_state()
-    assert as_player == state.active_color
+    assert as_player = state.active_color
     
     # TODO Get list of possible moves
     # TODO iterate through and check if move is in the list
@@ -195,7 +206,7 @@ func force_finality{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
         range_check_ptr}(forced_finality : felt) -> ():
     assert_pending()
-    assert_sender_is(2)
+    assert_sender_is(GOVERNOR)
     finality.write(forced_finality)
     # todo assert that forced_finality <= 3
     return ()
@@ -205,17 +216,14 @@ end
 func surrender{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
         range_check_ptr}(as_player : felt) -> ():
-    assert_pending()
-    assert_sender_is(as_player)
-    # governor shouldn't call this
-    assert as_player != 2
+    regular_player_asserts(as_player)
     if as_player == 0: 
         # white surrendered
-        finality.write(2)
+        finality.write(BLACK_WIN)
         return ()
     end
     # black surrendered
-    finality.write(1)
+    finality.write(WHITE_WIN)
     return ()
 end
 
@@ -223,19 +231,16 @@ end
 func offer_draw{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
         range_check_ptr}(as_player : felt) -> ():
-    assert_pending()
-    assert_sender_is(as_player)
-    # governor shouldn't call this
-    assert as_player != 2
+    regular_player_asserts(as_player)
     # check if other player already offered
     let (other) = other_player(as_player)
     let (move_count) = move_counter(i=0)
     # drawing at move 0 is banned
-    assert move_count != 0
+    assert_not_zero(move_count)
     let (other_offer) = draw_offer.read(other)
     if move_count == other_offer:
         # both sides just agreed to a draw.
-        finality.write(3)
+        finality.write(DRAW)
         return ()
     end
     # that means caller is first to propose draw this turn.
@@ -249,11 +254,7 @@ func draw_threefold_repetition{
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr
         }(as_player : felt, a : felt, b : felt, c : felt) -> ():
     alloc_locals
-    assert_pending()
-    assert_sender_is(as_player)
-    # governor shouldn't call this
-    assert as_player != 2
-
+    regular_player_asserts(as_player)
     # assert a < b; b < c; c < n_moves
     let (n) = move_counter(i=0)
     assert_lt(a, b)
@@ -269,9 +270,9 @@ func draw_threefold_repetition{
     let (state_c) = state_advancer(state=first_state, curr=0, remain=c)
     let (local fb) = encode_board_state(state_c)
 
-    assert fa == fb
-    assert fb == fc
-    finality.write(3)
+    assert fa = fb
+    assert fb = fc
+    finality.write(DRAW)
     return ()
 end
 
@@ -280,27 +281,22 @@ func draw_fifty_moves{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr
         }(as_player : felt) -> ():
-    assert_pending()
-    asser_sender_is(as_player)
-    # governor shouldn't call this
-    assert as_player != 2
-
+    regular_player_asserts(as_player)
     let (state) = actual_state()
     # assert that state.halfmove_clock is >= 100
     let halfmove_clock = state.halfmove_clock
     assert_le(100, halfmove_clock)
-    finality.write(3)
+    finality.write(DRAW)
     return ()
 end
 
-# constructed with white, black, governor, initial_state to storage.
 @constructor
 func constructor{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
         range_check_ptr}(_white : felt, _black : felt, _governor : felt, _initial_state : felt):
-    players.write(0, _white)
-    players.write(1, _black)
-    players.write(2, _governor)
+    players.write(WHITE, _white)
+    players.write(BLACK, _black)
+    players.write(GOVERNOR, _governor)
     initial_state.write(_initial_state)
     return ()
 end
