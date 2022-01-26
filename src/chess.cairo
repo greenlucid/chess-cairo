@@ -3,8 +3,10 @@
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.math import {
+    assert_nn
     assert_lt
     assert_le
+    assert_nn_le
     assert_not_equal
     assert_not_zero
 }
@@ -207,8 +209,8 @@ func force_finality{
         range_check_ptr}(forced_finality : felt) -> ():
     assert_pending()
     assert_sender_is(GOVERNOR)
+    assert_nn_le(forced_finality, 3)
     finality.write(forced_finality)
-    # todo assert that forced_finality <= 3
     return ()
 end
 
@@ -255,8 +257,9 @@ func draw_threefold_repetition{
         }(as_player : felt, a : felt, b : felt, c : felt) -> ():
     alloc_locals
     regular_player_asserts(as_player)
-    # assert a < b; b < c; c < n_moves
+    # assert 0 <= a < b; b < c; c < n_moves
     let (n) = move_counter(i=0)
+    assert_nn(a)
     assert_lt(a, b)
     assert_lt(b, c)
     assert_lt(c, n)
