@@ -4,14 +4,14 @@ from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.pow import pow
 
-from contracts.state import {
+from src.state import (
     State
-}
+)
 
-from contracts.bit_helper import {
-    bits_at
+from src.bit_helper import (
+    bits_at,
     bit_at
-}
+)
 
 func decode_pos{
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr

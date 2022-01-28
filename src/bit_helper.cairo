@@ -6,7 +6,8 @@ func bits_at{
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr
         }(el : felt, offset : felt, size : felt) -> (result : felt):
     alloc_locals
-    let (basic_mask) = pow(2, size) - 1
+    let (pre_basic_mask) = pow(2, size)
+    let basic_mask = pre_basic_mask - 1
     tempvar distance = 251 - offset - size
     let (local multiplier) = pow(2, distance)
     tempvar mask = multiplier * basic_mask

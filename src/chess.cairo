@@ -2,31 +2,28 @@
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
-from starkware.cairo.common.math import {
-    assert_nn
-    assert_lt
-    assert_le
-    assert_nn_le
-    assert_not_equal
+from starkware.cairo.common.math import (
+    assert_nn,
+    assert_lt,
+    assert_le,
+    assert_nn_le,
+    assert_not_equal,
     assert_not_zero
-}
+)
 
-from contracts.state import {
-    State
-}
-
-from contracts.decoder import {
-    decode_state
-}
-
-from contracts.encoder import {
-    encode_state
-    encode_board_state
-}
-
-from starkware.starknet.common.syscalls import {
+from starkware.starknet.common.syscalls import (
     get_contract_address
-}
+)
+
+from src.state import State
+from src.advance_state import advance_state
+
+from src.decoder import decode_state
+
+from src.encoder import (
+    encode_state,
+    encode_board_state
+)
 
 const WHITE = 0
 const BLACK = 1
@@ -63,33 +60,27 @@ end
 func draw_offer(color : felt) -> (ply : felt):
 end
 
-
-# Filler funcs. Substitute them when we get the proper funcs
-
-func state_after_move(state : State, move : felt) -> (next_state : State):
-    # TODO
-    return ()
-end
-
 # Helper funcs
 
 func state_advancer{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
-        range_check_ptr
+        bitwise_ptr : BitwiseBuiltin*, range_check_ptr
         }(state : State, curr : felt, remain : felt) -> (final_state : State):
     if remain == 0:
         return (final_state=state)
     end
+    alloc_locals
     let (move) = moves.read(curr)
     # this is a struct so it may break
-    let (next_state) = state_after_move(state, move)
-    let (final_state) = state_advancer(state=next_state, curr+1, remain-1)
+    let (next_state) = advance_state(state, move)
+    let (final_state) = state_advancer(next_state, curr+1, remain-1)
     return (final_state=final_state)
 end
 
 func actual_state{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
-        bitwise_ptr : BitwiseBuiltin*, range_check_ptr}() -> (state : felt):
+        bitwise_ptr : BitwiseBuiltin*, range_check_ptr}() -> (state : State):
+    alloc_locals
     let (encoded_state) = initial_state.read()
     let (first_state) = decode_state(encoded_state)
     let (n) = n_moves()
@@ -130,6 +121,7 @@ func regular_player_asserts{
     assert_pending()
     assert_sender_is(as_player)
     assert_not_equal(as_player, GOVERNOR)
+    return ()
 end
 
 # So, you don't actually need to store how many moves there are.
@@ -137,6 +129,7 @@ end
 func move_counter{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
         range_check_ptr}(i : felt) -> (count : felt):
+    alloc_locals
     let (move) = moves.read(i)
     if move == 0:
         return (count=i)
@@ -151,6 +144,7 @@ end
 func current_state{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr}() -> (state : felt):
+    alloc_locals
     let (state) = actual_state()
     let (encoded_state) = encode_state(state)
     return (state=encoded_state)
@@ -207,6 +201,7 @@ end
 func force_finality{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
         range_check_ptr}(forced_finality : felt) -> ():
+    alloc_locals
     assert_pending()
     assert_sender_is(GOVERNOR)
     assert_nn_le(forced_finality, 3)
@@ -218,6 +213,7 @@ end
 func surrender{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
         range_check_ptr}(as_player : felt) -> ():
+    alloc_locals
     regular_player_asserts(as_player)
     if as_player == 0: 
         # white surrendered
@@ -233,6 +229,7 @@ end
 func offer_draw{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
         range_check_ptr}(as_player : felt) -> ():
+    alloc_locals
     regular_player_asserts(as_player)
     # check if other player already offered
     let (other) = other_player(as_player)
@@ -271,7 +268,7 @@ func draw_threefold_repetition{
     let (state_b) = state_advancer(state=first_state, curr=0, remain=b)
     let (local fb) = encode_board_state(state_b)
     let (state_c) = state_advancer(state=first_state, curr=0, remain=c)
-    let (local fb) = encode_board_state(state_c)
+    let (local fc) = encode_board_state(state_c)
 
     assert fa = fb
     assert fb = fc

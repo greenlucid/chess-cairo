@@ -11,12 +11,12 @@ Considering the Forsyth-Edwards Notation (FEN), the internal representation of a
 	White Queen - WQ : 10011 19 13
 	White King - WK : 10100 20 14
 	White Pawn - WP : 10101 21 15
-	Black Rook - BR : 11000 22 16
-	Black Knight - BN : 11001 23 17
-	Black Bishop - BB : 11010 24 18
-	Black Queen - BQ : 11011 25 19
-	Black King - BK : 11100 26 1A
-	Black Pawn - BP : 11101 27 1B
+	Black Rook - BR : 11000 24 18
+	Black Knight - BN : 11001 25 19
+	Black Bishop - BB : 11010 26 1A
+	Black Queen - BQ : 11011 27 1B
+	Black King - BK : 11100 28 1C
+	Black Pawn - BP : 11101 29 1D
 	}
 
 	The code of the pieces starts with 10000 (bin) for convinience related with the compressing format.
