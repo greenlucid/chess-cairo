@@ -1,18 +1,39 @@
-%builtins output bitwise
+# CHESS CAIRO - CORE
+# THIS FILE CONTAINS THE FUNCTIONS THAT CALCULATE MOVES AND LEGAL POSITIONS
 
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bitwise import bitwise_and, bitwise_xor
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.serialize import serialize_word
 
-const word_lenght = 5
+from chess_utils import get_pattern_word
+from chess_utils import different_color
+from chess_utils import same_color
+from chess_utils import piece_color
+from chess_utils import get_final_square
+from chess_utils import code_to_move
+from chess_utils import sq_coord
+from chess_utils import coord_sq
+from chess_utils import get_binary_word
+from chess_utils import board_overflow
+from chess_utils import is_attacked
+from chess_utils import construct_move
+from chess_utils import white_king_is_attacked
+from chess_utils import black_king_is_attacked
+from chess_utils import get_rep
+from chess_utils import show_moves
+from chess_utils import get_castle_bool
+from chess_utils import is_move_in_list
 
-const king_pattern = 1144132807
-# For queen_pattern just use bishop_pattern and rook_pattern 
-const bishop_pattern = 136391
-const knight_pattern = 284889069007
-const rook_pattern = 35904
-# Still needed pattern for black and white pawns
+const king_pattern = 305419888
+const bishop_pattern = 17767
+const knight_pattern = 2309737967
+const rook_pattern = 4896
+const white_pawn_pattern = 1046
+const black_pawn_pattern = 1319
+const queen_pattern = 320882023
+const empty_square = -1
+
 
 # Here the codes for the pieces:
 
@@ -92,341 +113,874 @@ const e1 = 60
 const f1 = 61
 const g1 = 62
 const h1 = 63
+
+# THE BASIC FUNCTION FOR THE SERVICE IS THE ONE THAT EVALUATES IF A GIVEN MOVE IS LEGAL ON A GIVEN BOARD
+# Returns 0 if the move is not legal and 1 if it's legal
+func is_legal_move{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, move: felt) -> (is_legal: felt):
+    alloc_locals
+
+    let (local raw_moves) = alloc()
+    # This list of moves is actually never used, so let's call it dummy 
+    let (local legal_moves) = alloc()
+    # Get the initial square: 6 first bits after truncating 8 bits on the right 
+    let (local initial_square) = get_binary_word(move, 8, 6)
+    # Get the piece in the initial_square, its color and its pattern
+    let square_contains = [board + initial_square]
+    let (local side_to_move) = piece_color(square_contains)
+    let (local pattern, pattern_length) = pattern_of(square_contains)
+
+    if side_to_move == 0:
+        return (is_legal = -1)
+    end
+    if side_to_move == 1:
+        let (raw_moves_size) = calculate_white_piece_moves(board, raw_moves, pattern, pattern_length, initial_square, initial_square)
+        # For adding the special moves we use wrappers, avoiding ifs
+        let (legal_moves_size) = discard_non_legal_white_moves(board, raw_moves, raw_moves_size, legal_moves)
+        let (result) = is_move_in_list(legal_moves, legal_moves_size, move)
+        show_moves(legal_moves, legal_moves_size)
+        return (is_legal= result)
+    end
+    if side_to_move == 2:
+        let (raw_moves_size) = calculate_black_piece_moves(board, raw_moves, pattern, pattern_length, initial_square, initial_square)
+        # For adding the special moves we use wrappers, avoiding ifs
+        let (legal_moves_size) = discard_non_legal_black_moves(board, raw_moves, raw_moves_size, legal_moves)
+        let (result) = is_move_in_list(legal_moves, legal_moves_size, move)
+        show_moves(legal_moves, legal_moves_size)
+        return (is_legal= result)
+    end
+    return (is_legal = -1)
+end
+
 # 
-# THIS IS THE MAIN RECURSIVE FUNCTION - 
+# FIRST WE HAVE THE RECURSIVE FUNCTIONS THAT CALCULATE THE MOVES - 
 # It reads the pattern, word by word, to know in which direction to calculate. 
 # Every word = 5 bits, it defines the direction - see function code_to_move (ok, notation is not unified, lots of tests) to see correspondence
 # The initial_sq (square) is always the same once you call the function - the ref_sq (reference square) is the last square considered
 # as final, or the initial square in case the stop_flag has been passed as 1 (because a trajectory has been compeleted)
 # The index is the position in the pattern.
 
-# WARNING: the recursive_vector only contains a couple of checks... many more needed to make it functional. This is just to test the recursion.
-# PLANING: To add special moves (pawns, castle, en passant capture) and the checking of legal positions (king's safety first!)
-func calculate_moves{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+
+func calculate_white_moves{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, board_index: felt, moves: felt*, en_passant_square: felt, castle_code: felt) -> (legal_moves: felt*, legal_moves_size: felt):
+    alloc_locals
+    let (local raw_moves) = alloc()
+    let (local legal_moves) = alloc()
+
+    let(raw_moves_size) = calculate_white_raw_moves(board, 0, raw_moves)
+
+    let (cw_add_size) = castle_white(board, raw_moves, raw_moves_size, castle_code)
+    tempvar new_size_cw = raw_moves_size + cw_add_size
+
+    let (wp_add_size) = white_promotion(board, raw_moves, new_size_cw, 0)
+    tempvar new_size_wp = new_size_cw + wp_add_size
+  
+    let (ep_new_size) = en_passant_white (board, raw_moves, new_size_wp, en_passant_square)
+    tempvar new_size_ep = new_size_wp + ep_new_size    
+ 
+    let (legal_moves_size) = discard_non_legal_white_moves(board, moves, new_size_ep, legal_moves)
+    
+    return (legal_moves = legal_moves, legal_moves_size = legal_moves_size)
+end
+
+# Calculating the moves of all white pieces, including illegal moves and not including special moves
+func calculate_white_raw_moves{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, board_index: felt, moves: felt*) -> (size_board_moves: felt):
+    alloc_locals
+    if board_index == 64:
+        return(0)
+    end
+    let (current_pattern, current_pattern_index) = pattern_of([board+board_index])
+    let (local size_this) = calculate_white_piece_moves(board, moves, current_pattern, current_pattern_index, board_index, board_index)
+    let (size_next) = calculate_white_raw_moves(board, board_index+1, moves + size_this)
+    return(size_this + size_next)    
+end
+
+# Calculating the moves of one white piece, including illegal moves
+func calculate_white_piece_moves{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
         board: felt*, moves: felt*, pattern: felt, index: felt, initial_sq: felt, ref_sq: felt)->(size: felt):
     alloc_locals
     if index == -1:
         return(0)
     end
     # Get current word
-    let (current_word) = get_word(pattern, index)
+    let (current_word) = get_pattern_word(pattern, index)
     # 
     let (local final_sq) = get_final_square(current_word, ref_sq)
 
     # Calculate recursive parameters
-    let (stop_flag, new_ref_sq, save_flag) = recursive_vector(board, moves, final_sq, initial_sq)
-
+    let (stop_flag, new_ref_sq, save_flag) = recursive_white_vector(board, moves, final_sq, initial_sq, current_word)
+    tempvar move_rep = initial_sq*256 + final_sq*4
+    if save_flag == 1:
+        assert [moves] = move_rep    
+    end
     # Send recursive parameters
-    let(size_res) = calculate_moves(board, moves+save_flag, pattern, index-stop_flag, initial_sq, new_ref_sq)
+    let(size_res) = calculate_white_piece_moves(board, moves+save_flag, pattern, index-stop_flag, initial_sq, new_ref_sq)
     # Recursive call
     return(size_res + save_flag)
 end
 
-func recursive_vector{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
-        board: felt*, moves: felt*, final_square: felt, initial_square: felt)->(stop_flag: felt, new_final_sq: felt, save_flag: felt):
+# Calculating the vector of parameters (stop_flag, new_final_sq, save_flag) used to guide the recursive func calculate_white_piece_moves
+func recursive_white_vector{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, final_square: felt, initial_square: felt, pattern_code: felt)->(stop_flag: felt, new_final_sq: felt, save_flag: felt):
+    alloc_locals
+    let (local final_x, final_y) = sq_coord(final_square)
     tempvar move_rep = initial_square*100 + final_square
     if final_square == 64:
         return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
     end
+    let (this_color) = piece_color([board+initial_square])
+    if this_color != 1:
+        return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+    end    
+    # Pawn moves
+    if [board+initial_square] == WPawn:
+        if pattern_code == 1:
+            if [board+final_square] == 0:
+                let (final_x, final_y) = sq_coord(final_square)
+                if final_y != 4:
+                    return(stop_flag=0, new_final_sq=final_square, save_flag=1)
+                else:
+                    return(stop_flag=1, new_final_sq=final_square, save_flag=1)
+                end
+            else:
+                return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+            end
+        else:
+            let (WPdifferent) = different_color(board, initial_square, final_square)
+            if WPdifferent == 1:
+                return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+            else:
+                return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+            end
+        end
+    end
+
     # Only one square in these cases:
     if [board+initial_square] == WKnight:
-        return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+        let (sameWN) = same_color(board, initial_square, final_square)
+        if sameWN == 1:
+            return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+        else:
+            return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+        end
     end
-    if [board+initial_square] == WKnight:
-        return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+    if [board+initial_square] == WKing:
+        let (sameWK) = same_color(board, initial_square, final_square)
+        if sameWK == 1:
+            return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+        else:
+            return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+        end
     end
     if [board+initial_square] == BKnight:
-        return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+        let (sameBN) = same_color(board, initial_square, final_square)
+        if sameBN == 1:
+            return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+        else:
+            return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+        end
     end
     if [board+initial_square] == BKing:
-        return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+        let (sameBK) = same_color(board, initial_square, final_square)
+        if sameBK == 1:
+            return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+        else:
+            return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+        end
     end
+    # ALL OTHER CASES
     let (same) = same_color(board, initial_square, final_square)
     if same == 1:
         return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
     end
     let (different) = different_color(board, initial_square, final_square)
     if different == 1:
-        tempvar move_rep = initial_square*100 + final_square
-        assert [moves] = move_rep
         return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
     end
-    tempvar move_rep = initial_square*100 + final_square
-    assert [moves] = move_rep
     return(stop_flag=0, new_final_sq=final_square, save_flag=1)
 end
 
-# SOME USEFUL FUNCTIONS RELATED WITH COLORS
-func same_color{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
-        board: felt*, initial_square: felt, final_square: felt) -> (same: felt):
+# NOT MOVING, BUT ATTACKING SQUARES, FOR WHITE
+func calculate_white_attack{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, board_index: felt, moves: felt*) -> (size_board_moves: felt):
     alloc_locals
-    let (local attacking_color) = piece_color([board+initial_square])
-    let (local final_color) = piece_color([board+final_square])
-    if attacking_color == final_color:
-        return(same=1)
+    if board_index == 64:
+        return(0)
     end
-    return(same=0)
+    let (current_pattern, current_pattern_index) = pattern_of([board+board_index])
+    let (local size_this) = calculate_white_attacking_moves(board, moves, current_pattern, current_pattern_index, board_index, board_index)
+    let (size_next) = calculate_white_attack(board, board_index+1, moves + size_this)
+    return(size_this + size_next)    
 end
 
-func different_color{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
-        board: felt*, initial_square: felt, final_square: felt) -> (diff: felt):
+func calculate_white_attacking_moves{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, pattern: felt, index: felt, initial_sq: felt, ref_sq: felt)->(size: felt):
     alloc_locals
-    let (local attacking_color) = piece_color([board+initial_square])
-    let (local final_color) = piece_color([board+final_square])
-    let (local inv_final_color) = invert_color(final_color)
-    if attacking_color == inv_final_color:
-        return(diff=1)
+    if index == -1:
+        return(0)
     end
-    return(diff=0)
-end
-func invert_color{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
-        initial_color: felt)->(final_color: felt):
-    if initial_color == 1:
-        return(final_color=2)
+    # Get current word
+    let (current_word) = get_pattern_word(pattern, index)
+    let (local final_sq) = get_final_square(current_word, ref_sq)
+
+    # Calculate recursive parameters
+    let (stop_flag, new_ref_sq, save_flag) = recursive_white_attacking_vector(board, moves, final_sq, initial_sq, current_word)
+    tempvar move_rep = initial_sq*256 + final_sq*4
+    if save_flag == 1:
+        assert [moves] = move_rep    
     end
-    if initial_color == 2:
-        return(final_color=1)
-    end
-    return(final_color=0)
+    # Send recursive parameters
+    let(size_res) = calculate_white_attacking_moves(board, moves+save_flag, pattern, index-stop_flag, initial_sq, new_ref_sq)
+    # Recursive call
+    return(size_res + save_flag)
 end
 
-func piece_color {output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(rep: felt) -> (res:felt):
-    let (res1) = bitwise_and(rep, 0x8)
-    tempvar bit1 = res1/0x8
-    let (res2) = bitwise_and(rep, 0x10)
-    tempvar bit2 = res2/0x10
-    return(res = bit1 + bit2)
-end
-
-# DEALING WITH SQUARES AND MOVES
-func get_final_square {output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(move_code: felt, initial_sq: felt)->(final_square:felt):
+func recursive_white_attacking_vector{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, final_square: felt, initial_square: felt, pattern_code: felt)->(stop_flag: felt, new_final_sq: felt, save_flag: felt):
     alloc_locals
-    let (local x, y) = sq_coord(initial_sq)
-    let (x_d, y_d) = code_to_move(move_code)
-    let final_x = x+x_d
-    let final_y = y+y_d
-    let (final_square) = coord_sq(final_x, final_y)
-    return (final_square=final_square)
+    let (local final_x, final_y) = sq_coord(final_square)
+    tempvar move_rep = initial_square*100 + final_square
+    if final_square == 64:
+        return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+    end
+    let (this_color) = piece_color([board+initial_square])
+    if this_color != 1:
+        return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+    end    
+    # Pawn attacks
+    if [board+initial_square] == WPawn:
+        if pattern_code != 1:
+            return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+        else:
+            return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+        end
+    end
+
+    # Only one square in these cases:
+    if [board+initial_square] == WKnight:
+        return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+    end
+    if [board+initial_square] == WKing:
+        return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+    end
+    if [board+initial_square] == BKnight:
+        return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+    end
+    if [board+initial_square] == BKing:
+        return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+    end
+    # ALL OTHER CASES
+    let (same) = same_color(board, initial_square, final_square)
+    if same == 1:
+        return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+    end
+    let (different) = different_color(board, initial_square, final_square)
+    if different == 1:
+        return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+    end
+    return(stop_flag=0, new_final_sq=final_square, save_flag=1)
 end
 
-func board_overflow{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(x:felt, y:felt)->(ov:felt, no: felt):
-    if x == -1:
-        return(ov=1, no=0)
-    end
-    if x == -2:
-        return(ov=1, no=0)
-    end
-    if x == 8:
-        return(ov=1, no=0)
-    end
-    if x == 9:
-        return(ov=1, no=0)
-    end
-    if y == -1:
-        return(ov=1, no=0)
-    end
-    if y == -2:
-        return(ov=1, no=0)
-    end
-    if y == 8:
-        return(ov=1, no=0)
-    end
-    if y == 9:
-        return(ov=1, no=0)
-    end
-    return(ov=0, no=1)
-end
-
-# Receives the code or word in a pattern (5 bits) and returns the variations in x and y 
-func code_to_move {output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(code: felt) -> (x_var: felt, y_var:felt):
-    # ifs listed in the same order than the introductory comment
-    if code == 4:
-        return(x_var=-1, y_var=-1)
-    end 
-    if code == 1:
-        return(x_var=0, y_var=-1)
-    end 
-    if code == 6:
-        return(x_var=1, y_var=-1)
-    end 
-    if code == 3:
-        return(x_var=1, y_var=0)
-    end 
-    if code == 7:
-        return(x_var=1, y_var=1)
-    end 
-    if code == 2:
-        return(x_var=0, y_var=1)
-    end 
-    if code == 5:
-        return(x_var=-1, y_var=1)
-    end 
-    if code == 0:
-        return(x_var=-1, y_var=0)
-    end
-    # Knight jumps:
-    if code == 12:
-        return(x_var=-1, y_var=-2)
-    end 
-    if code == 9:
-        return(x_var=1, y_var=-2)
-    end 
-    if code == 14:
-        return(x_var=2, y_var=-1)
-    end 
-    if code == 11:
-        return(x_var=2, y_var=1)
-    end 
-    if code == 15:
-        return(x_var=1, y_var=2)
-    end 
-    if code == 10:
-        return(x_var=-1, y_var=2)
-    end 
-    if code == 13:
-        return(x_var=-2, y_var=1)
-    end 
-    if code == 8:
-        return(x_var=-2, y_var=-1)
-    end
-    return(0,0)
-end
-
-# Returns the coordinates of a square given in linear codification (0-> a1, 63->h8)
-func sq_coord {bitwise_ptr : BitwiseBuiltin*}(square: felt) -> (x: felt, y:felt):
-    let (x) = bitwise_and(square, 0x7)
-    tempvar dif = square - x 
-    let y = dif / 0x8
-    return(x=x, y=y)
-end
-
-# Returns the linear codification (0-> a1, 63->h8) of a square given in coordinates
-func coord_sq {output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(x: felt, y:felt) -> (square: felt):
+# FROM THE BLACK SIDE ---------------------------------------------------------------------
+func calculate_black_moves{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, board_index: felt, moves: felt*, en_passant_square: felt, castle_code: felt) -> (legal_moves: felt*, legal_moves_size: felt):
     alloc_locals
-    let (ov, no) = board_overflow(x, y)
-    let new_y = y * 0x8
-    tempvar res = 64*ov + (new_y + x)*no
-    return (square=res)
+    let (local raw_moves) = alloc()
+    let (local legal_moves) = alloc()
+
+    let(raw_moves_size) = calculate_black_raw_moves(board, 0, raw_moves)
+
+    let (cw_add_size) = castle_black(board, raw_moves, raw_moves_size, castle_code)
+    tempvar new_size_cw = raw_moves_size + cw_add_size
+
+    let (wp_add_size) = black_promotion(board, raw_moves, new_size_cw, 0)
+    tempvar new_size_wp = new_size_cw + wp_add_size
+  
+    let (ep_new_size) = en_passant_black (board, raw_moves, new_size_wp, en_passant_square)
+    tempvar new_size_ep = new_size_wp + ep_new_size    
+ 
+    let (legal_moves_size) = discard_non_legal_black_moves(board, moves, new_size_ep, legal_moves)
+    
+    return (legal_moves = legal_moves, legal_moves_size = legal_moves_size)
 end
 
-# SOME FUNCTIONS TO DEAL WITH THE PATTERN 
-func get_word{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(pattern: felt, index: felt) -> (word: felt):
+func calculate_black_raw_moves{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, board_index: felt, moves: felt*) -> (size_board_moves: felt):
     alloc_locals
-    # WORD CALCULATION: Get 2^(bit+1) - Example 4 bits word: 10000
-    let (local bin_word_pow) = binpow(word_lenght)
-    # INDEX CALCULATION: Get the bin position for the bit-th word - Ex: 4 bits word, index 2: result 9
-    let word_index = index * word_lenght
-    # Get the corresponding power of two for that bin_index - Ex: 2^9
-    let (bin_index) = binpow(word_index)
-    # Set the word in the index - Ex: 111100000000
-    let word_in_index = bin_index * (bin_word_pow - 1)
-    # CALCULATE WORD IN THE CODE
-    let (word_in_code) = bitwise_and(pattern, word_in_index)
-    # Eliminate zeros on the right
-    let word = word_in_code / bin_index
-    # Return the value
-    return(word=word)
-
-end
-
-# Returns 2^pow for a given pow
-func binpow {output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(pow: felt)->(res:felt):
-    if pow == 0:
-        return(res=1)
-    else:
-        let(res1) = binpow(pow-1)
-        tempvar result = res1 * 2
+    if board_index == 64:
+        return(0)
     end
-    return(res = result)
+    let (current_pattern, current_pattern_index) = pattern_of([board+board_index])
+    let (local size_this) = calculate_black_piece_moves(board, moves, current_pattern, current_pattern_index, board_index, board_index)
+    let (size_next) = calculate_black_raw_moves(board, board_index+1, moves + size_this)
+    return(size_this + size_next)    
 end
 
-# -----------------------------------------------------------------
-# DICTIONARY STRUCTURE 
-# Returns the input truncating 8 bit on the right
-func truncate_eight_bit{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(input: felt)->(res:felt):
-    let (input_last_eight_bit) = bitwise_and(input, 0xFF)
-    tempvar input_minus_last_eight_bit = input - input_last_eight_bit
-    tempvar res1 = input_minus_last_eight_bit / 0x100
-    return (res=res1) 
-end
-
-# Return value based on key
-func eight_bit_dict{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(dict: felt*, dict_size: felt, key:felt) -> (res:felt):
-    if dict_size == 0:
-        return (res=0)
+func calculate_black_piece_moves{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, pattern: felt, index: felt, initial_sq: felt, ref_sq: felt)->(size: felt):
+    alloc_locals
+    if index == -1:
+        return(0)
     end
-    let (current_key) =  truncate_eight_bit([dict])
-    if current_key == key:
-        let (value) = bitwise_and([dict], 0xFF)
-        return(res=value)
-    else:
-        let (result) = eight_bit_dict(dict+1, dict_size-1, key)
+    # Get current word
+    let (current_word) = get_pattern_word(pattern, index)
+    # 
+    let (local final_sq) = get_final_square(current_word, ref_sq)
+
+    # Calculate recursive parameters
+    let (stop_flag, new_ref_sq, save_flag) = recursive_black_vector(board, moves, final_sq, initial_sq, current_word)
+    tempvar move_rep = initial_sq*256 + final_sq*4
+    if save_flag == 1:
+        assert [moves] = move_rep    
     end
-    return(res=result)
+    # Send recursive parameters
+    let(size_res) = calculate_black_piece_moves(board, moves+save_flag, pattern, index-stop_flag, initial_sq, new_ref_sq)
+    # Recursive call
+    return(size_res + save_flag)
 end
 
-func get_dict_code(square: felt, piece: felt) -> (picece_in_board: felt):
-    tempvar code = square * 256 + piece
-    return(code)
+func recursive_black_vector{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, final_square: felt, initial_square: felt, pattern_code: felt)->(stop_flag: felt, new_final_sq: felt, save_flag: felt):
+    alloc_locals
+    let (local final_x, final_y) = sq_coord(final_square)
+    tempvar move_rep = initial_square*100 + final_square
+    if final_square == 64:
+        return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+    end
+    let (this_color) = piece_color([board+initial_square])
+
+    if this_color != 2:
+        return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+    end    
+
+    # Black pawn is moving forward
+    if [board+initial_square] == BPawn:
+        if pattern_code == 2:
+            if [board+final_square] == 0:
+                let (final_x, final_y) = sq_coord(final_square)
+                if final_y != 3:
+                    return(stop_flag=0, new_final_sq=final_square, save_flag=1)
+                else:
+                    return(stop_flag=1, new_final_sq=final_square, save_flag=1)
+                end
+            else:
+                return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+            end
+        else:
+            let (BPdifferent) = different_color(board, initial_square, final_square)
+            if BPdifferent == 1:
+                return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+            else:
+                return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+            end
+        end
+    end
+    # Only one square in these cases:
+    
+    if [board+initial_square] == WKnight:
+        let (sameWN) = same_color(board, initial_square, final_square)
+        if sameWN == 1:
+            return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+        else:
+            return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+        end
+    end
+    if [board+initial_square] == WKing:
+        let (sameWK) = same_color(board, initial_square, final_square)
+        if sameWK == 1:
+            return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+        else:
+            return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+        end
+    end
+    if [board+initial_square] == BKnight:
+        let (sameBN) = same_color(board, initial_square, final_square)
+        if sameBN == 1:
+            return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+        else:
+            return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+        end
+    end
+    if [board+initial_square] == BKing:
+        let (sameBK) = same_color(board, initial_square, final_square)
+        if sameBK == 1:
+            return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+        else:
+            return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+        end
+    end
+
+    # ALL OTHER CASES
+    let (same) = same_color(board, initial_square, final_square)
+    if same == 1:
+        return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+    end
+    let (different) = different_color(board, initial_square, final_square)
+    if different == 1:
+        return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+    end
+    return(stop_flag=0, new_final_sq=final_square, save_flag=1)
 end
 
-# END OF DICTIONARY STRUCTURE 
-# -----------------------------------------------------------------
+# NOT MOVING, BUT ATTACKING SQUARES, FOR BLACK
+func calculate_black_attack{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, board_index: felt, att_moves_array: felt*) -> (size_board_moves: felt):
+    alloc_locals
+    if board_index == 64:
+        return(0)
+    end
+    let (current_pattern, current_pattern_index) = pattern_of([board+board_index])
+    let (local size_this) = calculate_black_attacking_moves(board, att_moves_array, current_pattern, current_pattern_index, board_index, board_index)
+    let (size_next) = calculate_black_attack(board, board_index+1, att_moves_array + size_this)
+    return(size_this + size_next)    
+end
 
-# -----------------------------------------------------------------
-# BOARD LOADER - USING DICTIONARY
-# Loads Board of board_size size, using the dict dictionary
-func board_loader{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
-        board: felt*, board_size: felt, dict: felt*, dict_size: felt, counter: felt):
-    if board_size == -1:  
+func calculate_black_attacking_moves{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, att_moves_array: felt*, pattern: felt, index: felt, initial_sq: felt, ref_sq: felt)->(size: felt):
+    alloc_locals
+    if index == -1:
+        return(0)
+    end
+    # Get current word
+    let (current_word) = get_pattern_word(pattern, index)
+    # 
+    let (local final_sq) = get_final_square(current_word, ref_sq)
+
+    # Calculate recursive parameters
+    let (stop_flag, new_ref_sq, save_flag) = recursive_black_attacking_vector(board, att_moves_array, final_sq, initial_sq, current_word)
+    tempvar move_rep = initial_sq*256 + final_sq*4
+    if save_flag == 1:
+        assert [att_moves_array] = move_rep    
+    end
+    # Send recursive parameters
+    let(size_res) = calculate_black_attacking_moves(board, att_moves_array+save_flag, pattern, index-stop_flag, initial_sq, new_ref_sq)
+    # Recursive call
+    return(size_res + save_flag)
+end
+
+func recursive_black_attacking_vector{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, final_square: felt, initial_square: felt, pattern_code: felt)->(stop_flag: felt, new_final_sq: felt, save_flag: felt):
+    alloc_locals
+    let (local final_x, final_y) = sq_coord(final_square)
+    tempvar move_rep = initial_square*100 + final_square
+    if final_square == 64:
+        return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+    end
+    let (this_color) = piece_color([board+initial_square])
+    if this_color != 2:
+        return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+    end    
+    # Pawn attacks
+    if [board+initial_square] == BPawn:
+        if pattern_code != 2:
+            return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+        else:
+            return(stop_flag=1, new_final_sq=initial_square, save_flag=0)
+        end
+    end
+
+    # Only one square in these cases:
+    if [board+initial_square] == WKnight:
+        return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+    end
+    if [board+initial_square] == WKing:
+        return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+    end
+    if [board+initial_square] == BKnight:
+        return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+    end
+    if [board+initial_square] == BKing:
+        return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+    end
+    # ALL OTHER CASES
+    let (same) = same_color(board, initial_square, final_square)
+    if same == 1:
+        return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+    end
+    let (different) = different_color(board, initial_square, final_square)
+    if different == 1:
+        return(stop_flag=1, new_final_sq=initial_square, save_flag=1)
+    end
+    return(stop_flag=0, new_final_sq=final_square, save_flag=1)
+end
+
+# Hardcoded pattern dictionary
+func pattern_of{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(piece: felt)->(pattern: felt, pattern_length: felt):
+    if piece == WRook:
+        return(pattern = rook_pattern, pattern_length = 3)
+    end
+    if piece == WKnight:
+        return(pattern = knight_pattern, pattern_length = 7)
+    end
+    if piece == WBishop:
+        return(pattern = bishop_pattern, pattern_length = 3)
+    end
+    if piece == WQueen:
+        return(pattern = queen_pattern, pattern_length = 7)
+    end
+    if piece == WKing:
+        return(pattern = king_pattern, pattern_length = 7)
+    end
+    if piece == WPawn:
+        return(pattern = white_pawn_pattern, pattern_length = 2)
+    end
+    if piece == BRook:
+        return(pattern = rook_pattern, pattern_length = 3)
+    end
+    if piece == BKnight:
+        return(pattern = knight_pattern, pattern_length = 7)
+    end
+    if piece == BBishop:
+        return(pattern = bishop_pattern, pattern_length = 3)
+    end
+    if piece == BQueen:
+        return(pattern = queen_pattern, pattern_length = 7)
+    end
+    if piece == BKing:
+        return(pattern = king_pattern, pattern_length = 7)
+    end
+    if piece == BPawn:
+        return(pattern = black_pawn_pattern, pattern_length = 2)
+    end
+    return(pattern = 0, pattern_length = -1)
+end
+
+# MOVING PIECES
+func make_move {output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, new_board: felt*, move: felt):
+    alloc_locals
+    let (local temp_board) = alloc()
+    let (local fin_y) = get_binary_word(move, 5, 3)
+    let (local fin_x) = get_binary_word(move, 2, 3)
+    let (local ini_y) = get_binary_word(move, 11, 3)
+    let (local ini_x) = get_binary_word(move, 8, 3)
+    let (local extra_info) = get_binary_word(move, 0, 2)
+    let initial_square = ini_y*8+ini_x
+    let final_square = fin_y*8+fin_x
+    let (final_piece) = resulting_piece([board+initial_square], fin_y, extra_info)
+    calculate_new_move_board(board, temp_board, 63, initial_square, final_square, final_piece)
+    if move == 15608:
+        calculate_new_move_board(temp_board, new_board, 63, h1, f1, WRook) 
         return()
     end
-
-    let (value) = eight_bit_dict(dict, dict_size, counter)
-    assert([board+counter]) = value
-    board_loader(board, board_size-1, dict, dict_size, counter+1) 
-    return()
-end
-
-# END OF BOARD LOADER 
-# -----------------------------------------------------------------
-
-func show_moves{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(list_of_moves: felt*, size: felt):
-    if size == 0:
+    if move == 15592:
+        calculate_new_move_board(temp_board, new_board, 63, a1, d1, WRook) 
         return()
     end
-    show_moves(list_of_moves+1, size-1)
-    serialize_word([list_of_moves])
+    if move == 1032:
+        calculate_new_move_board(temp_board, new_board, 63, a8, d8, BRook) 
+        return()
+    end
+    if move == 1048:
+        calculate_new_move_board(temp_board, new_board, 63, h8, f8, BRook) 
+        return()
+    end
+    calculate_new_move_board(temp_board, new_board, 63, 64, 64, 0) 
     return()
 end
 
-# THE MAIN FUNCTION - Here you can include some pieces in the board, using the dictionary.
-func main{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}():
+func resulting_piece{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        piece_moving: felt, final_y: felt, extra_info: felt)->(final_piece: felt):
     alloc_locals
-    let (local dict) = alloc()
-    let (local board) = alloc()
-    let (local moves1) = alloc()
-    let (local moves2) = alloc()
-    # Here we should include a moves: felt* to load the moves (by now, take a look at the final squares in the console
-    let (code1) = get_dict_code(d4, WBishop)
-    let (code2) = get_dict_code(b6, BKnight)
-    let (code3) = get_dict_code(g7, WQueen)
-    
-    assert [dict] = code1
-    assert [dict+1] = code2
-    assert [dict+2] = code3
-    
-    board_loader(board, 63,dict, 3, 0)
+    let (local color) = piece_color(piece_moving)
+    if color == 1:
+        tempvar cond_promo = (piece_moving - 20) * (final_y + 1) 
+        if cond_promo == 1:
+            return (final_piece = 16 + extra_info)
+        end
+    end
 
-    let (d4_size) = calculate_moves(board, moves1, bishop_pattern, 3, d4, d4)
-    show_moves(moves1, d4_size)
+    if color == 2:
+        tempvar cond_promo = (piece_moving - 28) * (final_y -6) 
+        if cond_promo == 1:
+            return (final_piece = 24 + extra_info)
+        end
+    end
+    return (final_piece=piece_moving)
+    end 
 
-    let (g7_size) = calculate_moves(board, moves2, bishop_pattern, 3, g7, g7)
-    show_moves(moves2, g7_size)
-
+func calculate_new_move_board{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, new_board: felt*, index: felt,  initial_square: felt, final_square: felt, piece_moving: felt):
+    if index == -1:
+        return()
+    end
+    if index == initial_square:
+        assert [new_board+index] = 0
+    else:
+        if index == final_square:
+            assert [new_board+index] = piece_moving
+        else:
+            assert [new_board+index] =  [board+index]    
+        end
+    end
+    calculate_new_move_board(board, new_board, index-1, initial_square, final_square, piece_moving)
     return()
 end
 
-# NEXT: KNIGHT MOVES NOT BEING RECORDED - CONFLICT AROUND FINAL SQUARE OF SAME COLOR OR NOT (SAME WIHT KING)
-# ALSO: PAWN MOVES
-# ALSO: SPECIAL MOVES
+# EN PASSANT CALCULATIONS FOR WHITE
+# This function receives the square where you can take en passant, plus the usual stuff
+# and returns, as usual, the size added to the moves array, saving the en passant moves accordingly
+func en_passant_white{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, moves_size: felt, en_passant_square: felt)->(add_size: felt):
+    alloc_locals
+    let (local size_added_1) = en_passant_left_white(board, moves, moves_size, en_passant_square)
+    let (local size_added_2) = en_passant_right_white(board, moves, moves_size + size_added_1, en_passant_square)
+    
+    return (add_size = size_added_1 + size_added_2)
+end
+
+func en_passant_left_white{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, moves_size: felt, en_passant_square: felt)->(add_size: felt):
+    alloc_locals
+    let (local x_ep, y_ep) = sq_coord(en_passant_square)
+    let (local new_move) = construct_move(en_passant_square + 7, en_passant_square, 0)
+    if y_ep == 2:    
+        if x_ep != 0:
+            # The + 9 comes from adding a row and a column. The column is not 'h', so you can do it without overflow of the board
+            if [board + en_passant_square + 7] == WPawn:
+                assert [moves + moves_size] = new_move
+                return(add_size = 1)
+            end
+        end
+    end
+    return (add_size = 0)
+end
+
+func en_passant_right_white{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, moves_size: felt, en_passant_square: felt)->(add_size: felt):
+    alloc_locals
+    let (local x_ep, y_ep) = sq_coord(en_passant_square)
+    let (local new_move) = construct_move(en_passant_square + 9, en_passant_square, 0)
+    if y_ep == 2:    
+        if x_ep != 7:
+            # The + 9 comes from adding a row and a column. The column is not 'h', so you can do it without overflow of the board
+            if [board + en_passant_square + 9] == WPawn:
+                assert [moves + moves_size] = new_move
+                return(add_size = 1)
+            end
+        end
+    end
+    return (add_size = 0)
+end
+
+# EN PASSANT CALCULATIONS FOR BLACK
+# This function receives the square where you can take en passant, plus the usual stuff
+# and returns, as usual, the size added to the moves array, saving the en passant moves accordingly
+func en_passant_black{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, moves_size: felt, en_passant_square: felt)->(add_size: felt):
+
+    let (size_added_1) = en_passant_left_black(board, moves, moves_size, en_passant_square)
+    let (size_added_2) = en_passant_right_black(board, moves, moves_size + size_added_1, en_passant_square)
+
+    return (add_size = size_added_2)
+end
+
+func en_passant_left_black{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, moves_size: felt, en_passant_square: felt)->(add_size: felt):
+    alloc_locals
+    let (x_ep, y_ep) = sq_coord(en_passant_square)
+    let (local new_move) = construct_move(en_passant_square - 9, en_passant_square, 0)
+    if y_ep == 5:    
+        if x_ep != 0:
+            # The + 9 comes from adding a row and a column. The column is not 'h', so you can do it without overflow of the board
+            if [board + en_passant_square - 9] == BPawn:
+                assert [moves + moves_size] = new_move
+                return(add_size = 1)
+            end
+        end
+    end
+    return (add_size = 0)
+end
+
+func en_passant_right_black{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, moves_size: felt, en_passant_square: felt)->(add_size: felt):
+    alloc_locals
+    let (x_ep, y_ep) = sq_coord(en_passant_square)
+    let (local new_move) = construct_move(en_passant_square - 7, en_passant_square, 0)
+    if y_ep == 5:    
+        if x_ep != 7:
+            # The + 9 comes from adding a row and a column. The column is not 'h', so you can do it without overflow of the board
+            if [board + en_passant_square - 7] == BPawn:
+                assert [moves + moves_size] = new_move
+                return(add_size = 1)
+            end
+        end
+    end
+    return (add_size = 0)
+end
+
+# WORK IN PROGRESS: CASTLING AND PROMOTING
+func castle_white{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, moves_size: felt, castle_code: felt)->(add_size: felt):
+    alloc_locals
+    let (local attacking_moves) = alloc()
+    let (local K_code, Q_code, not_used_1, not_used_2) = get_castle_bool(castle_code)
+    let (local attacking_moves_size) = calculate_black_attack(board, 0, attacking_moves)
+    let (size_added_1) = castle_short_white(board, moves, moves_size, attacking_moves, attacking_moves_size, K_code)
+    let (size_added_2) = castle_long_white(board, moves, moves_size + size_added_1, attacking_moves, attacking_moves_size, Q_code)
+    return (add_size = size_added_1 + size_added_2)
+end
+
+func castle_short_white{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, moves_size: felt, attacking_moves: felt*, attacking_moves_size: felt, castle_code: felt)->(add_size: felt):
+    alloc_locals
+    tempvar free_f1 = [board+f1] + 1
+    tempvar free_g1 = [board+g1] + 1
+    let (local in_check) = white_king_is_attacked (attacking_moves, attacking_moves_size, board)
+    let (local g1_attacked) = is_attacked(attacking_moves, attacking_moves_size, g1)
+    let (local f1_attacked) = is_attacked(attacking_moves, attacking_moves_size, f1)
+    let test_castle_cond = free_f1 * free_g1 * (g1_attacked + 1) * (f1_attacked + 1) * castle_code * (in_check + 1)
+    if test_castle_cond == 1:
+        assert [moves + moves_size] = 15608
+        return(add_size = 1)
+    end
+    return(add_size = 0)
+end
+
+func castle_long_white{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, moves_size: felt, attacking_moves: felt*, attacking_moves_size: felt, castle_code: felt)->(add_size: felt):
+    alloc_locals
+    tempvar free_d1 = [board+d1] + 1
+    tempvar free_c1 = [board+c1] + 1
+    let (local in_check) = white_king_is_attacked (attacking_moves, attacking_moves_size, board)
+    let (local d1_attacked) = is_attacked(attacking_moves, attacking_moves_size, d1)
+    let (local c1_attacked) = is_attacked(attacking_moves, attacking_moves_size, c1)
+    let test_castle_cond = free_c1 * free_d1 * (d1_attacked + 1) * (c1_attacked + 1) * castle_code * (in_check + 1)
+    if test_castle_cond == 1:
+        assert [moves + moves_size] = 15592
+        return(add_size = 1)
+    end
+    return(add_size = 0)
+end
+
+func castle_black{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, moves_size: felt, attacking_moves: felt*, attacking_moves_size: felt, castle_code: felt)->(add_size: felt):
+    alloc_locals
+    let (local not_used_1, not_used_2, k_code, q_code) = get_castle_bool(castle_code)
+    let (size_added_1) = castle_short_black(board, moves, moves_size, attacking_moves, attacking_moves_size, k_code)
+    let (size_added_2) = castle_long_black(board, moves, moves_size + size_added_1, attacking_moves, attacking_moves_size, q_code)
+
+    return (add_size = size_added_1 + size_added_2)
+end
+
+func castle_short_black{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, moves_size: felt, attacking_moves: felt*, attacking_moves_size: felt, castle_code: felt)->(add_size: felt):
+    alloc_locals
+    tempvar free_g8 = [board + g8] + 1
+    tempvar free_f8 = [board + f8] + 1
+    let (local in_check) = black_king_is_attacked (attacking_moves, attacking_moves_size, board)
+    let (local g8_attacked) = is_attacked(attacking_moves, attacking_moves_size, g8)
+    let (local f8_attacked) = is_attacked(attacking_moves, attacking_moves_size, f8)
+    let test_castle_cond = free_g8 * free_f8 * (g8_attacked + 1) * (f8_attacked + 1) * castle_code * (in_check + 1)
+    if test_castle_cond == 1:
+        assert [moves + moves_size] = 536
+        return(add_size = 1)
+    end
+    return(add_size = 0)
+end
+
+func castle_long_black{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, moves_size: felt, attacking_moves: felt*, attacking_moves_size: felt, castle_code: felt)->(add_size: felt):
+    alloc_locals
+    tempvar free_d8 = [board + d8] + 1
+    tempvar free_c8 = [board + c8] + 1
+    let (local in_check) = black_king_is_attacked (attacking_moves, attacking_moves_size, board)
+    let (local d8_attacked) = is_attacked(attacking_moves, attacking_moves_size, d8)
+    let (local c8_attacked) = is_attacked(attacking_moves, attacking_moves_size, c8)
+    let test_castle_cond = free_c8 * free_d8 * (d8_attacked + 1) * (c8_attacked + 1) * castle_code * (in_check + 1)
+    if test_castle_cond == 1:
+        assert [moves + moves_size] = 520
+        return(add_size = 1)
+    end
+    return(add_size = 0)
+end
+
+# index should be 0 when calling - Returns the number of moves added
+func white_promotion{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, moves_size: felt, index: felt)->(new_size: felt):
+    alloc_locals
+    if index == moves_size:
+        return(new_size = 0)
+    end
+    let (local add_size) = white_promotion(board, moves, moves_size, index+1)
+    let current_move = [moves+index]
+    let (local ini_y) = get_binary_word(current_move, 11, 3)
+    let (local ini_x) = get_binary_word(current_move, 8, 3)
+    let (local current_square) = coord_sq(ini_x, ini_y)
+    let current_piece = [board+current_square]
+    tempvar check_cond =  (current_piece-20) * ini_y 
+    if check_cond == 1:
+        assert [moves + moves_size + add_size] = current_move + 1
+        assert [moves + moves_size + add_size + 1] = current_move + 2
+        assert [moves + moves_size + add_size + 2] = current_move + 3
+        return (new_size = add_size + 3)
+    end
+    return(new_size = add_size)
+end
+
+func black_promotion{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, moves_size: felt, index: felt)->(new_size: felt):
+    alloc_locals
+    if index == moves_size:
+        return(new_size = 0)
+    end
+    let (local add_size) = black_promotion(board, moves, moves_size, index+1)
+    let current_move = [moves+index]
+    let (local ini_y) = get_binary_word(current_move, 11, 3)
+    let (local ini_x) = get_binary_word(current_move, 8, 3)
+    let (local current_square) = coord_sq(ini_x, ini_y)
+    let current_piece = [board+current_square]
+    tempvar check_cond =  (current_piece-20) * ini_y 
+    if check_cond == 1:
+        assert [moves + moves_size + add_size] = current_move + 1
+        assert [moves + moves_size + add_size + 1] = current_move + 2
+        assert [moves + moves_size + add_size + 2] = current_move + 3
+        return (new_size = add_size + 3)
+    end
+    return(new_size = add_size)
+end
+
+# Creating a new array of moves only with the legal moves given a board
+# 
+func discard_non_legal_white_moves{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, moves_size: felt, new_moves: felt*)->(new_moves_size: felt):
+    alloc_locals
+    if moves_size == 0:
+        return (new_moves_size = 0)
+    end
+    let (local added_size) = discard_non_legal_white_moves(board, moves, moves_size - 1, new_moves)
+    let (local attacking_moves) = alloc()
+    let (local new_board) = alloc()
+    tempvar this_move = [moves + moves_size-1]
+    make_move(board, new_board, this_move)
+    let (local_rep) = get_rep([moves + moves_size-1])
+    let(local attacking_size) = calculate_black_attack(new_board, 0, attacking_moves)
+    let(local is_not_legal_move) = white_king_is_attacked(attacking_moves, attacking_size, new_board)
+    if is_not_legal_move == 0:
+        assert [new_moves + added_size] = this_move
+        return(new_moves_size = added_size + 1)
+    end
+    return(new_moves_size = added_size)
+end
+
+func discard_non_legal_black_moves{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, moves_size: felt, new_moves: felt*)->(new_moves_size: felt):
+    alloc_locals
+    if moves_size == 0:
+        return (new_moves_size = 0)
+    end
+    let (local added_size) = discard_non_legal_black_moves(board, moves, moves_size - 1, new_moves)
+    let (local attacking_moves) = alloc()
+    let (local new_board) = alloc()
+    tempvar this_move = [moves + moves_size-1]
+    make_move(board, new_board, this_move)
+    let (local_rep) = get_rep([moves + moves_size-1])
+    let(local attacking_size) = calculate_white_attack(new_board, 0, attacking_moves)
+    let(local is_not_legal_move) = black_king_is_attacked(attacking_moves, attacking_size, new_board)
+    if is_not_legal_move == 0:
+        assert [new_moves + added_size] = this_move
+        return(new_moves_size = added_size + 1)
+    end
+    return(new_moves_size = added_size)
+end

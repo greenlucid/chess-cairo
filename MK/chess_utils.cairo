@@ -1,10 +1,13 @@
+#CHESS CAIRO UTILS
+# FROM ALL THE HORRIBLE PRACTICES IN THIS CODE, I know the worst is probably this annoying "moves, moves_size" thing.
+# Hopefully I find soon the time to refactor everything with a struct.
+
 %builtins output bitwise
 
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.bitwise import bitwise_and, bitwise_xor
+from starkware.cairo.common.bitwise import bitwise_and
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.serialize import serialize_word
-
 
 # CONSTANT VALUES FOR CHESS CAIRO
 # Lenght of the pattern
@@ -138,6 +141,8 @@ end
 # END OF DICTIONARY STRUCTURE 
 # -----------------------------------------------------------------
 
+
+# VARIOUS FUNCs USED ON THE CORE ..................................
 # Checks if a piece is trying to jump 1 or 2 rows/columns off the board
 func board_overflow{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(x:felt, y:felt)->(ov:felt, no: felt):
     if x == -1:
@@ -167,7 +172,9 @@ func board_overflow{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(x:felt, y
     return(ov=0, no=1)
 end
 
-# Returns the coordinates of a square given in linear codification (0-> a1, 63->h8)
+# Returns the coordinates of a square given in linear codification (0-> 0,0 (a8); 63-> 7,7 (h1); 17-> 2,1)
+# Notice that in this codification, the number of the square contains naturally the row in the first 3 bits
+# and the column in the last threee bits. Ex: b6 = 17, in binary: 010001; or 010 and 001, which are (2, 1).
 func sq_coord {bitwise_ptr : BitwiseBuiltin*}(square: felt) -> (x: felt, y:felt):
     let (x) = bitwise_and(square, 0x7)
     tempvar dif = square - x 
@@ -175,7 +182,7 @@ func sq_coord {bitwise_ptr : BitwiseBuiltin*}(square: felt) -> (x: felt, y:felt)
     return(x=x, y=y)
 end
 
-# Returns the linear codification (0-> a1, 63->h8) of a square given in coordinates
+# Returns the linear codification (0-> 0,0 (a8); 63-> 7,7 (h1)) of a square given in coordinates
 func coord_sq {output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(x: felt, y:felt) -> (square: felt):
     alloc_locals
     let (ov, no) = board_overflow(x, y)
@@ -184,8 +191,11 @@ func coord_sq {output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(x: felt, y:fel
     return (square=res)
 end
 
-
-# SOME FUNCTIONS TO DEAL WITH THE PATTERN 
+# SOME FUNCTIONS TO DEAL WITH THE PATTERN
+# The Pattern of movement of a piece is the list of directions in which a piece can move.
+# Ex: bishop moves in the directions (+1, +1), (+1, -1), (-1, +1), (-1, -1).
+# The pattern contains words (or codes) of 4 bits that indicates those directions. See func code_to_move.
+# The following func extracts the word (or code) in the position (index) of the (pattern) given.
 func get_pattern_word{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(pattern: felt, index: felt) -> (word: felt):
     alloc_locals
     # WORD CALCULATION: Get 2^(bit+1) - Example 4 bits word: 10000
@@ -206,6 +216,7 @@ func get_pattern_word{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(pattern
 end
 
 # Returns 2^pow for a given pow
+# Maybe this func should be replaced with the builtin.
 func binpow {output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(pow: felt)->(res:felt):
     if pow == 0:
         return(res=1)
@@ -216,6 +227,8 @@ func binpow {output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(pow: felt)->(res
     return(res = result)
 end
 
+# Shows the moves, using a friendly representation. b1-c3 = 17250 (row 1, col 7 to row 2, col 5, extra info = 0)
+# The extra info is only used when promoting and indicates the piece that is promoting
 func show_moves{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(list_of_moves: felt*, size: felt):
     if size == 0:
         return()
@@ -265,12 +278,13 @@ func invert_color{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
     return(final_color=0)
 end
 
+# returns 0 = no piece, 1 = white piece, 2 = black piece
 func piece_color {output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(rep: felt) -> (res:felt):
     let (res1) = bitwise_and(rep, 0x8)
-    tempvar bit1 = res1/0x8
+    tempvar is_black = res1/0x8
     let (res2) = bitwise_and(rep, 0x10)
-    tempvar bit2 = res2/0x10
-    return(res = bit1 + bit2)
+    tempvar is_piece = res2/0x10
+    return(res = is_black + is_piece)
 end
 
 # DEALING WITH SQUARES AND MOVES
@@ -342,20 +356,57 @@ func code_to_move {output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(code: felt
     return(0,0)
 end
 
+# Returns 1 if square is the final square of any of the moves given. 
 func is_attacked{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
         moves: felt*, size: felt, square: felt) -> (res: felt):
     alloc_locals
-    if size == -1:
+    if size == 0:
         return(res=0)
     end
     # Transform from compress rep (a3 = 3-a = 5-0 = 101000) to board rep (a3 = row * 8 + column) 
-    let (local fin_y) = get_binary_word([moves+size], 5, 3)
-    let (local fin_x) = get_binary_word([moves+size], 2, 3)
+    let (local fin_y) = get_binary_word([moves+size-1], 5, 3)
+    let (local fin_x) = get_binary_word([moves+size-1], 2, 3)
     tempvar final_square = fin_y * 8 + fin_x
     if square == final_square:
         return(res= 1)
     end
     let (result) = is_attacked(moves, size - 1, square)
+    return(res=result)
+end
+
+# Returns 1 if the final square of any of the moves given is = 20 (WKing). 
+func white_king_is_attacked{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        moves: felt*, size: felt, board: felt*) -> (res: felt):
+    alloc_locals
+    if size == 0:
+        return(res=0)
+    end
+    # Transform from compress rep (a3 = 3-a = 5-0 = 101000) to board rep (a3 = row * 8 + column) 
+    let (local fin_y) = get_binary_word([moves+size-1], 5, 3)
+    let (local fin_x) = get_binary_word([moves+size-1], 2, 3)
+    tempvar final_square = fin_y * 8 + fin_x
+    if [board + final_square] == 20:
+        return(res= 1)
+    end
+    let (result) = white_king_is_attacked(moves, size - 1, board)
+    return(res=result)
+end
+
+# Returns 1 if the final square of any of the moves given is = 28 (BKing). 
+func black_king_is_attacked{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        moves: felt*, size: felt, board: felt*) -> (res: felt):
+    alloc_locals
+    if size == 0:
+        return(res=0)
+    end
+    # Transform from compress rep (a3 = 3-a = 5-0 = 101000) to board rep (a3 = row * 8 + column) 
+    let (local fin_y) = get_binary_word([moves+size-1], 5, 3)
+    let (local fin_x) = get_binary_word([moves+size-1], 2, 3)
+    tempvar final_square = fin_y * 8 + fin_x
+    if [board + final_square] == 28:
+        return(res= 1)
+    end
+    let (result) = black_king_is_attacked(moves, size - 1, board)
     return(res=result)
 end
 
@@ -406,4 +457,37 @@ func put_binary_word{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
     let new_binary_word_index = binary_word * binary_index_power
 
     return(new_tape = make_room_in_tape + new_binary_word_index + binary_rest)
+end
+
+# Move (as saved in the moves array) constructor, using original square, final square and extra info
+func construct_move{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        original_square: felt, final_square: felt, extra_info: felt)-> (move: felt):
+    tempvar result = original_square * 256 + final_square * 4 + extra_info
+    return (move = result)
+end
+
+# From castle code to booleans for evert possible castling option
+func get_castle_bool{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        castle_code: felt)->(K_code: felt, Q_code: felt, k_code: felt, q_code: felt):
+    alloc_locals
+    let (local K_code) = get_binary_word(castle_code, 3, 1)
+    let (local Q_code) = get_binary_word(castle_code, 2, 1)
+    let (local k_code) = get_binary_word(castle_code, 1, 1)
+    let (local q_code) = get_binary_word(castle_code, 0, 1)
+    return(K_code= K_code, Q_code= Q_code, k_code= k_code, q_code= q_code)
+end
+
+func is_move_in_list{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        moves: felt*, moves_size: felt, move: felt) -> (is_move_in_list: felt):
+    alloc_locals
+    if moves_size == 0:
+        return(is_move_in_list = 0)
+    end
+    #Recursive call
+    let (local result) = is_move_in_list(moves, moves_size - 1, move)
+    let current_move = [moves+ moves_size - 1]
+    if current_move == move:
+        return(is_move_in_list = 1)
+    end
+    return(is_move_in_list = result)
 end
