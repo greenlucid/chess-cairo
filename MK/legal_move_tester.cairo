@@ -119,7 +119,7 @@ func main{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}():
     
     # board_loader loads the board, using the pieces indicated in the dict and filling 
     # the rest of the board with zeros.
-    board_loader(board, 63,dict, numb_pieces, 0)
+    board_loader(board, 63, dict, numb_pieces, 0)
 
     # TEST
     let (test_move) = construct_move(12, 11, 0)
