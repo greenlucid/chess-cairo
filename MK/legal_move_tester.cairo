@@ -101,12 +101,14 @@ func main{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}():
     let (local board) = alloc()
 
     # As many words in the dict as pieces you want on the board
-    let (word1) = get_dict_code(e7, BKing)
+    let (word1) = get_dict_code(e8, BKing)
     let (word2) = get_dict_code(e1, WKing)
     let (word3) = get_dict_code(h1, WRook)
-    let (word4) = get_dict_code(g4, BKnight)
-    let (word5) = get_dict_code(c6, WPawn)
+    let (word4) = get_dict_code(g5, BKnight)
+    let (word5) = get_dict_code(c7, WPawn)
     let (word6) = get_dict_code(a1, WRook)
+    let (word7) = get_dict_code(h8, BRook)
+    let (word8) = get_dict_code(a8, BRook)
 
     assert [dict] = word1
     assert [dict+1] = word2
@@ -114,21 +116,24 @@ func main{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}():
     assert [dict+3] = word4
     assert [dict+4] = word5
     assert [dict+5] = word6
+    assert [dict+6] = word7
+    assert [dict+7] = word8
 
-    tempvar numb_pieces = 6
+    tempvar numb_pieces = 8
     
     # board_loader loads the board, using the pieces indicated in the dict and filling 
     # the rest of the board with zeros.
     board_loader(board, 63, dict, numb_pieces, 0)
 
     # TEST
-    let (test_move) = construct_move(12, 11, 0)
+    let (test_move) = construct_move(c7, c8, 1)
     serialize_word(7777777777777)
+    serialize_word(test_move)
     let (rep) = get_rep(test_move)
     serialize_word(rep)
     serialize_word(7777777777777)
 
-    let (local test_legal) = is_legal_move(board, test_move)
+    let (local test_legal) = is_legal_move(board, 15, b6, test_move)
     serialize_word(test_legal)
 
     return()

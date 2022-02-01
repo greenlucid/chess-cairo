@@ -117,7 +117,7 @@ const h1 = 63
 # THE BASIC FUNCTION FOR THE SERVICE IS THE ONE THAT EVALUATES IF A GIVEN MOVE IS LEGAL ON A GIVEN BOARD
 # Returns 0 if the move is not legal and 1 if it's legal
 func is_legal_move{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
-        board: felt*, move: felt) -> (is_legal: felt):
+        board: felt*, castle_code: felt, en_passant_code: felt, move: felt) -> (is_legal: felt):
     alloc_locals
 
     let (local raw_moves) = alloc()
@@ -135,18 +135,18 @@ func is_legal_move{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
     end
     if side_to_move == 1:
         let (raw_moves_size) = calculate_white_piece_moves(board, raw_moves, pattern, pattern_length, initial_square, initial_square)
-        # For adding the special moves we use wrappers, avoiding ifs
-        let (legal_moves_size) = discard_non_legal_white_moves(board, raw_moves, raw_moves_size, legal_moves)
+        let (king_moves_added) = white_castle_legal_wrapper(board, raw_moves, raw_moves_size, castle_code, initial_square)
+        let (pawn_moves_added) = white_special_pawn_moves(board, raw_moves, king_moves_added, en_passant_code, initial_square)
+        let (legal_moves_size) = discard_non_legal_white_moves(board, raw_moves, pawn_moves_added, legal_moves)
         let (result) = is_move_in_list(legal_moves, legal_moves_size, move)
-        show_moves(legal_moves, legal_moves_size)
         return (is_legal= result)
     end
     if side_to_move == 2:
         let (raw_moves_size) = calculate_black_piece_moves(board, raw_moves, pattern, pattern_length, initial_square, initial_square)
-        # For adding the special moves we use wrappers, avoiding ifs
-        let (legal_moves_size) = discard_non_legal_black_moves(board, raw_moves, raw_moves_size, legal_moves)
+        let (king_moves_added) = black_castle_legal_wrapper(board, raw_moves, raw_moves_size, castle_code, initial_square)
+        let (pawn_moves_added) = black_special_pawn_moves(board, raw_moves, king_moves_added, en_passant_code, initial_square)        
+        let (legal_moves_size) = discard_non_legal_black_moves(board, raw_moves, pawn_moves_added, legal_moves)
         let (result) = is_move_in_list(legal_moves, legal_moves_size, move)
-        show_moves(legal_moves, legal_moves_size)
         return (is_legal= result)
     end
     return (is_legal = -1)
@@ -238,7 +238,7 @@ func recursive_white_vector{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
         if pattern_code == 1:
             if [board+final_square] == 0:
                 let (final_x, final_y) = sq_coord(final_square)
-                if final_y != 4:
+                if final_y == 5:
                     return(stop_flag=0, new_final_sq=final_square, save_flag=1)
                 else:
                     return(stop_flag=1, new_final_sq=final_square, save_flag=1)
@@ -459,7 +459,7 @@ func recursive_black_vector{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
         if pattern_code == 2:
             if [board+final_square] == 0:
                 let (final_x, final_y) = sq_coord(final_square)
-                if final_y != 3:
+                if final_y == 2:
                     return(stop_flag=0, new_final_sq=final_square, save_flag=1)
                 else:
                     return(stop_flag=1, new_final_sq=final_square, save_flag=1)
@@ -855,9 +855,11 @@ func castle_long_white{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
 end
 
 func castle_black{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
-        board: felt*, moves: felt*, moves_size: felt, attacking_moves: felt*, attacking_moves_size: felt, castle_code: felt)->(add_size: felt):
+        board: felt*, moves: felt*, moves_size: felt, castle_code: felt)->(add_size: felt):
     alloc_locals
+    let (local attacking_moves) = alloc()
     let (local not_used_1, not_used_2, k_code, q_code) = get_castle_bool(castle_code)
+    let (local attacking_moves_size) = calculate_white_attack(board, 0, attacking_moves)    
     let (size_added_1) = castle_short_black(board, moves, moves_size, attacking_moves, attacking_moves_size, k_code)
     let (size_added_2) = castle_long_black(board, moves, moves_size + size_added_1, attacking_moves, attacking_moves_size, q_code)
 
@@ -874,7 +876,7 @@ func castle_short_black{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
     let (local f8_attacked) = is_attacked(attacking_moves, attacking_moves_size, f8)
     let test_castle_cond = free_g8 * free_f8 * (g8_attacked + 1) * (f8_attacked + 1) * castle_code * (in_check + 1)
     if test_castle_cond == 1:
-        assert [moves + moves_size] = 536
+        assert [moves + moves_size] = 1048
         return(add_size = 1)
     end
     return(add_size = 0)
@@ -890,13 +892,14 @@ func castle_long_black{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
     let (local c8_attacked) = is_attacked(attacking_moves, attacking_moves_size, c8)
     let test_castle_cond = free_c8 * free_d8 * (d8_attacked + 1) * (c8_attacked + 1) * castle_code * (in_check + 1)
     if test_castle_cond == 1:
-        assert [moves + moves_size] = 520
+        assert [moves + moves_size] = 1032
         return(add_size = 1)
     end
     return(add_size = 0)
 end
 
-# index should be 0 when calling - Returns the number of moves added
+# Use index = 0. This function detects if there's a promotion (generally with a 0 in the extra info, that means promoting a queen)
+# and adds the other three possible promotions (knight, bishop, rook).
 func white_promotion{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
         board: felt*, moves: felt*, moves_size: felt, index: felt)->(new_size: felt):
     alloc_locals
@@ -919,6 +922,8 @@ func white_promotion{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
     return(new_size = add_size)
 end
 
+# Use index = 0. This function detects if there's a promotion (generally with a 0 in the extra info, that means promoting a queen)
+# and adds the other three possible promotions (knight, bishop, rook).
 func black_promotion{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
         board: felt*, moves: felt*, moves_size: felt, index: felt)->(new_size: felt):
     alloc_locals
@@ -983,4 +988,46 @@ func discard_non_legal_black_moves{output_ptr : felt*, bitwise_ptr : BitwiseBuil
         return(new_moves_size = added_size + 1)
     end
     return(new_moves_size = added_size)
+end
+
+# Legal Wrappers for king and pawn moves
+func white_castle_legal_wrapper{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, moves_size: felt, castle_code: felt, initial_square: felt)->(new_size: felt):
+    if [board+initial_square] != WKing:
+        return(new_size = moves_size)
+    end
+    let (cw_add_size) = castle_white(board, moves, moves_size, castle_code)
+    tempvar new_size_cw = moves_size + cw_add_size
+    return (new_size = new_size_cw)
+end
+
+func black_castle_legal_wrapper{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, moves_size: felt, castle_code: felt, initial_square: felt)->(new_size: felt):
+    if [board+initial_square] != BKing:
+        return(new_size = moves_size)
+    end
+    let (cw_add_size) = castle_black(board, moves, moves_size, castle_code)
+    return (new_size = moves_size + cw_add_size)
+end
+
+func white_special_pawn_moves{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, moves_size: felt, en_passant_code: felt, initial_square: felt)->(new_size: felt):
+    alloc_locals
+    if [board+initial_square] != WPawn:
+        return(new_size = moves_size)
+    end
+    let (local wp_size) = white_promotion(board, moves, moves_size, 0)
+    let (local ep_size) = en_passant_white(board, moves, moves_size + wp_size, en_passant_code)
+    return(new_size = moves_size + ep_size + wp_size)
+end
+
+func black_special_pawn_moves{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, moves: felt*, moves_size: felt, en_passant_code: felt, initial_square: felt)->(new_size: felt):
+    alloc_locals
+    if [board+initial_square] != BPawn:
+        return(new_size = moves_size)
+    end
+    let (local wp_size) = black_promotion(board, moves, moves_size, 0)
+    let (local ep_size) = en_passant_black(board, moves, moves_size + wp_size, en_passant_code)
+    return(new_size = moves_size + ep_size + wp_size)
 end

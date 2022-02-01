@@ -15,9 +15,10 @@ end
 
 func check_legality{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
         state: State, move: felt) -> (is_legal: felt):
-
-    let (result) = is_legal_move(board, move)
-
+    let castle_code = state.castling_K * 8 + state.castling_Q * 4 + state.castling_k * 2 + state.castling_q
+    let en_passant_code = state.passant 
+    let (result) = is_legal_move(state.positions, castle_code, en_passant_code, move)
+    
     return(is_legal = result)
 end
 
