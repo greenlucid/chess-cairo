@@ -376,37 +376,37 @@ end
 
 # Returns 1 if the final square of any of the moves given is = 20 (WKing). 
 func white_king_is_attacked{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
-        moves: felt*, size: felt, board: felt*) -> (res: felt):
+        black_attacking_moves: felt*, black_attacking_moves_size: felt, board: felt*) -> (res: felt):
     alloc_locals
-    if size == 0:
+    if black_attacking_moves_size == 0:
         return(res=0)
     end
     # Transform from compress rep (a3 = 3-a = 5-0 = 101000) to board rep (a3 = row * 8 + column) 
-    let (local fin_y) = get_binary_word([moves+size-1], 5, 3)
-    let (local fin_x) = get_binary_word([moves+size-1], 2, 3)
+    let (local fin_y) = get_binary_word([black_attacking_moves+black_attacking_moves_size-1], 5, 3)
+    let (local fin_x) = get_binary_word([black_attacking_moves+black_attacking_moves_size-1], 2, 3)
     tempvar final_square = fin_y * 8 + fin_x
     if [board + final_square] == 20:
         return(res= 1)
     end
-    let (result) = white_king_is_attacked(moves, size - 1, board)
+    let (result) = white_king_is_attacked(black_attacking_moves, black_attacking_moves_size - 1, board)
     return(res=result)
 end
 
 # Returns 1 if the final square of any of the moves given is = 28 (BKing). 
 func black_king_is_attacked{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
-        moves: felt*, size: felt, board: felt*) -> (res: felt):
+        white_attacking_moves: felt*, white_attacking_moves_size: felt, board: felt*) -> (res: felt):
     alloc_locals
-    if size == 0:
+    if white_attacking_moves_size == 0:
         return(res=0)
     end
     # Transform from compress rep (a3 = 3-a = 5-0 = 101000) to board rep (a3 = row * 8 + column) 
-    let (local fin_y) = get_binary_word([moves+size-1], 5, 3)
-    let (local fin_x) = get_binary_word([moves+size-1], 2, 3)
+    let (local fin_y) = get_binary_word([white_attacking_moves+white_attacking_moves_size-1], 5, 3)
+    let (local fin_x) = get_binary_word([white_attacking_moves+white_attacking_moves_size-1], 2, 3)
     tempvar final_square = fin_y * 8 + fin_x
     if [board + final_square] == 28:
         return(res= 1)
     end
-    let (result) = black_king_is_attacked(moves, size - 1, board)
+    let (result) = black_king_is_attacked(white_attacking_moves, white_attacking_moves_size - 1, board)
     return(res=result)
 end
 

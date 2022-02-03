@@ -160,13 +160,11 @@ end
 # as final, or the initial square in case the stop_flag has been passed as 1 (because a trajectory has been compeleted)
 # The index is the position in the pattern.
 
-
+# Legal_moves is the array that will contain the legal moves once the function finishes.
 func calculate_white_moves{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
-        board: felt*, board_index: felt, moves: felt*, en_passant_square: felt, castle_code: felt) -> (legal_moves: felt*, legal_moves_size: felt):
+        board: felt*, legal_moves: felt*, castle_code: felt,  en_passant_square: felt) -> (legal_moves_size: felt):
     alloc_locals
     let (local raw_moves) = alloc()
-    let (local legal_moves) = alloc()
-
     let(raw_moves_size) = calculate_white_raw_moves(board, 0, raw_moves)
 
     let (cw_add_size) = castle_white(board, raw_moves, raw_moves_size, castle_code)
@@ -178,9 +176,9 @@ func calculate_white_moves{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
     let (ep_new_size) = en_passant_white (board, raw_moves, new_size_wp, en_passant_square)
     tempvar new_size_ep = new_size_wp + ep_new_size    
  
-    let (legal_moves_size) = discard_non_legal_white_moves(board, moves, new_size_ep, legal_moves)
+    let (legal_moves_size) = discard_non_legal_white_moves(board, raw_moves, new_size_ep, legal_moves)
     
-    return (legal_moves = legal_moves, legal_moves_size = legal_moves_size)
+    return (legal_moves_size = legal_moves_size)
 end
 
 # Calculating the moves of all white pieces, including illegal moves and not including special moves
@@ -384,11 +382,9 @@ end
 
 # FROM THE BLACK SIDE ---------------------------------------------------------------------
 func calculate_black_moves{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
-        board: felt*, board_index: felt, moves: felt*, en_passant_square: felt, castle_code: felt) -> (legal_moves: felt*, legal_moves_size: felt):
+        board: felt*, legal_moves: felt*, castle_code: felt, en_passant_square: felt) -> (legal_moves_size: felt):
     alloc_locals
     let (local raw_moves) = alloc()
-    let (local legal_moves) = alloc()
-
     let(raw_moves_size) = calculate_black_raw_moves(board, 0, raw_moves)
 
     let (cw_add_size) = castle_black(board, raw_moves, raw_moves_size, castle_code)
@@ -400,9 +396,9 @@ func calculate_black_moves{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
     let (ep_new_size) = en_passant_black (board, raw_moves, new_size_wp, en_passant_square)
     tempvar new_size_ep = new_size_wp + ep_new_size    
  
-    let (legal_moves_size) = discard_non_legal_black_moves(board, moves, new_size_ep, legal_moves)
+    let (legal_moves_size) = discard_non_legal_black_moves(board, raw_moves, new_size_ep, legal_moves)
     
-    return (legal_moves = legal_moves, legal_moves_size = legal_moves_size)
+    return (legal_moves_size = legal_moves_size)
 end
 
 func calculate_black_raw_moves{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
@@ -946,7 +942,7 @@ func black_promotion{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
     return(new_size = add_size)
 end
 
-# Creating a new array of moves only with the legal moves given a board
+# Creating a new array of moves only with the legal moves, given a board
 # 
 func discard_non_legal_white_moves{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
         board: felt*, moves: felt*, moves_size: felt, new_moves: felt*)->(new_moves_size: felt):
@@ -1030,4 +1026,64 @@ func black_special_pawn_moves{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}
     let (local wp_size) = black_promotion(board, moves, moves_size, 0)
     let (local ep_size) = en_passant_black(board, moves, moves_size + wp_size, en_passant_code)
     return(new_size = moves_size + ep_size + wp_size)
+end
+
+# Functions that return the result of the game:
+# pending: 0
+# white checkmate: 1
+# black checkmate: 2
+# stalemate: 3  
+func calculate_status{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, side_to_move: felt, castle_code: felt,  en_passant_code: felt)->(status: felt):
+    if side_to_move == 0:
+        let (result) = calculate_white_status(board, castle_code, en_passant_code)
+        return (status=result)
+    end
+    if side_to_move == 1:
+        let (result) = calculate_black_status(board, castle_code, en_passant_code)
+        return (status=result)
+    end
+    return(status = -1)
+end
+
+func calculate_white_status{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, castle_code: felt, en_passant_code: felt) -> (status: felt):
+    alloc_locals
+    let (local moves) = alloc()
+    let (local black_attacking_moves) = alloc()
+    let (moves_size) = calculate_white_moves(board, moves, castle_code, en_passant_code)
+    let (black_attacking_moves_size) = calculate_black_attack(board, 0, black_attacking_moves)
+    let (king_attacked) = white_king_is_attacked(black_attacking_moves, black_attacking_moves_size, board)
+    tempvar mate_condition = king_attacked * (moves_size + 1)
+    tempvar stalemate_condition = (king_attacked + 1) * (moves_size + 1)
+    if mate_condition == 1:
+        return (status = 1)
+    end
+    if stalemate_condition == 1:
+        return (status = 3)
+    end
+    return (status = 0)
+end
+
+func calculate_black_status{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
+        board: felt*, castle_code: felt, en_passant_code: felt) -> (status: felt):
+    alloc_locals
+    let (local moves) = alloc()
+    let (local white_attacking_moves) = alloc()
+    let (local moves_size) = calculate_black_moves(board, moves, castle_code, en_passant_code)
+    let (local white_attacking_moves_size) = calculate_white_attack(board, 0, white_attacking_moves)
+    let (local king_attacked) = black_king_is_attacked(white_attacking_moves, white_attacking_moves_size, board)
+    serialize_word(33333333333333333333333333333)
+    serialize_word(moves_size)
+    serialize_word(king_attacked)
+    serialize_word(33333333333333333333333333333)
+    tempvar mate_condition = king_attacked * (moves_size + 1)
+    tempvar stalemate_condition = (king_attacked + 1) * (moves_size + 1)
+    if mate_condition == 1:
+        return (status = 2)
+    end
+    if stalemate_condition == 1:
+        return (status = 3)
+    end
+    return (status = 0)
 end

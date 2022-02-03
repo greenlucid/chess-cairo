@@ -16,7 +16,7 @@ end
 func check_legality{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
         state: State, move: felt) -> (is_legal: felt):
     let castle_code = state.castling_K * 8 + state.castling_Q * 4 + state.castling_k * 2 + state.castling_q
-    let en_passant_code = state.passant 
+    let en_passant_code = state.passant + 16 + 24 * state.active_color
     let (result) = is_legal_move(state.positions, castle_code, en_passant_code, move)
     
     return(is_legal = result)
@@ -26,7 +26,7 @@ func advance_positions{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
         positions: felt*, move: felt)->(resulting_position: felt*):
     alloc_locals
     let (local result) = alloc()
-
+    make_move(position, result, move)
     return(resulting_position = result)
 end
 
@@ -37,6 +37,11 @@ end
 # draw: 3 (stalemate, insufficient material) 
 func calculate_result{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
         state: State)->(result: felt):
-    return(result = 0)
+    let castle_code = state.castling_K * 8 + state.castling_Q * 4 + state.castling_k * 2 + state.castling_q
+    let en_passant_code = state.passant 
+    let side_to_move = state.active_color
+    let (status) = calculate_status(state.positions, side_to_move, castle_code,  en_passant_square)
+
+    return(result = status)
 end
     

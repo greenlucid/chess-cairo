@@ -4,14 +4,15 @@ from starkware.cairo.common.bitwise import bitwise_and
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.serialize import serialize_word
 
+#from service import check_legality
 from chess_utils import get_dict_code
 from chess_utils import board_loader
 from chess_utils import construct_move
 from chess_utils import get_rep
-
 from core import is_legal_move
+from core import make_move
+from core import calculate_status
 
-# Here the codes for the pieces:
 
 const WRook = 16
 const WKnight = 17
@@ -100,15 +101,18 @@ func main{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}():
     # An array of 64 felt, indicating the pieces on the board. Empty squares are = 0. 
     let (local board) = alloc()
 
+    let (local board_after_move) = alloc()
+
     # As many words in the dict as pieces you want on the board
-    let (word1) = get_dict_code(e8, BKing)
-    let (word2) = get_dict_code(e1, WKing)
-    let (word3) = get_dict_code(h1, WRook)
-    let (word4) = get_dict_code(g5, BKnight)
+    let (word1) = get_dict_code(h8, BKing)
+    let (word2) = get_dict_code(g6, WPawn)
+    let (word3) = get_dict_code(g7, BPawn)
+    let (word4) = get_dict_code(g8, BBishop)
+
     let (word5) = get_dict_code(c7, WPawn)
-    let (word6) = get_dict_code(a1, WRook)
-    let (word7) = get_dict_code(h8, BRook)
-    let (word8) = get_dict_code(a8, BRook)
+    let (word6) = get_dict_code(f1, WKing)
+    let (word7) = get_dict_code(a5, WRook)
+    let (word8) = get_dict_code(g2, WKnight)
 
     assert [dict] = word1
     assert [dict+1] = word2
@@ -126,7 +130,7 @@ func main{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}():
     board_loader(board, 63, dict, numb_pieces, 0)
 
     # TEST
-    let (test_move) = construct_move(c7, c8, 1)
+    let (test_move) = construct_move(c7, c8, 3)
     serialize_word(7777777777777)
     serialize_word(test_move)
     let (rep) = get_rep(test_move)
@@ -135,6 +139,21 @@ func main{output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}():
 
     let (local test_legal) = is_legal_move(board, 15, b6, test_move)
     serialize_word(test_legal)
+
+    serialize_word(555555555555555555555)
+    serialize_word([board+c7])
+    serialize_word([board+c8])
+    serialize_word(555555555555555555555)
+
+    make_move(board, board_after_move, test_move)
+
+    serialize_word(555555555555555555555)
+    serialize_word([board_after_move+c7])
+    serialize_word([board_after_move+c8])
+    serialize_word(555555555555555555555)
+
+    let (status) = calculate_status(board_after_move, 1, 15,  1)
+    serialize_word(status)
 
     return()
 end
