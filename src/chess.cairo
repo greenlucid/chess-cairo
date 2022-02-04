@@ -25,6 +25,11 @@ from src.encoder import (
     encode_board_state
 )
 
+from src.service import (
+    check_legality,
+    calculate_result
+)
+
 const WHITE = 0
 const BLACK = 1
 const GOVERNOR = 2
@@ -187,12 +192,16 @@ func make_move{
     let (local state) = actual_state()
     assert as_player = state.active_color
     
-    # TODO Get list of possible moves
-    # TODO iterate through and check if move is in the list
-    # After asserting all this:
+    let (legality) = check_legality(state, move)
+    assert legality = 1
+
     let (move_count) = n_moves()
     moves.write(move_count, move)
-    # get the finality of the state after this move, and write it.
+    let (local result) = calculate_result(state)
+    if result != 0:
+        finality.write(result)
+        return ()
+    end
     return ()
 end
 

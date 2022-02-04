@@ -7,6 +7,8 @@ from src.bit_helper import bits_at
 
 from src.chess_utils import dissect_move
 
+from src.service import advance_positions
+
 const WHITE = 0
 const BLACK = 1
 
@@ -21,12 +23,6 @@ const h8 = 7
 const a1 = 56
 const e1 = 60
 const h1 = 63
-
-func advance_positions(state : State, move : felt) -> (next_positions : felt*):
-    # TODO, bogus func
-    let (super_array) = alloc()
-    return (next_positions=super_array)
-end
 
 func advance_active_color(prev_active_color : felt) -> (next_active_color : felt):
     if prev_active_color == WHITE:
@@ -158,7 +154,7 @@ func advance_state{
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr
         }(state : State, move : felt) -> (next_state : State):
     alloc_locals
-    let (local next_positions) = advance_positions(state=state, move=move)
+    let (local next_positions) = advance_positions(positions=state.positions, move=move)
     let (local next_active_color) = advance_active_color(state.active_color)
     let (local origin, _, _) = dissect_move(move)
     let (local next_castling_K) = advance_castling_K(state.castling_K, origin)
