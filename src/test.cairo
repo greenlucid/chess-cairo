@@ -57,11 +57,13 @@ func main{output_ptr : felt*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*}():
     serialize_word(222222222222222222222222222222222)
     # Test legality
     const enc_move_e4 = 13456
+    const enc_move_e7_to_e5 = 3184
     const enc_move_e2_to_f4 = 13460
     const enc_move_e4_alt = 13457 # like, "promotion"
     let (local move_e4) = parse_move(enc_move_e4)
+    let (local move_e5) = parse_move(enc_move_e7_to_e5)
 
-    let (local legality) = check_legality(state, enc_move_e4)
+    let (local legality) = check_legality(state, enc_move_e7_to_e5)
     #let (local legality_2) = check_legality(state, enc_move_e2_to_f4)
     #let (local legality_3) = check_legality(state, enc_move_e4_alt)
     serialize_word(legality) # expect 1

@@ -23,6 +23,14 @@ from src.chess_utils import get_rep
 from src.chess_utils import get_castle_bool
 from src.chess_utils import is_move_in_list
 
+from src.chess_utils import (
+    parse_move,
+    point_to_felt,
+    encode_move
+)
+
+from src.state import Move
+
 const king_pattern = 305419888
 const bishop_pattern = 17767
 const knight_pattern = 2309737967
@@ -114,7 +122,7 @@ const h1 = 63
 
 # THE BASIC FUNCTION FOR THE SERVICE IS THE ONE THAT EVALUATES IF A GIVEN MOVE IS LEGAL ON A GIVEN BOARD
 # Returns 0 if the move is not legal and 1 if it's legal
-func is_legal_move{bitwise_ptr : BitwiseBuiltin*}(
+func is_legal_move{bitwise_ptr : BitwiseBuiltin*, range_check_ptr}(
         board: felt*, castle_code: felt, en_passant_code: felt, move: felt) -> (is_legal: felt):
     alloc_locals
 
@@ -159,7 +167,7 @@ end
 # The index is the position in the pattern.
 
 # Legal_moves is the array that will contain the legal moves once the function finishes.
-func calculate_white_moves{bitwise_ptr : BitwiseBuiltin*}(
+func calculate_white_moves{bitwise_ptr : BitwiseBuiltin*, range_check_ptr}(
         board: felt*, legal_moves: felt*, castle_code: felt,  en_passant_square: felt) -> (legal_moves_size: felt):
     alloc_locals
     let (local raw_moves) = alloc()
@@ -379,7 +387,7 @@ func recursive_white_attacking_vector{bitwise_ptr : BitwiseBuiltin*}(
 end
 
 # FROM THE BLACK SIDE ---------------------------------------------------------------------
-func calculate_black_moves{bitwise_ptr : BitwiseBuiltin*}(
+func calculate_black_moves{bitwise_ptr : BitwiseBuiltin*, range_check_ptr}(
         board: felt*, legal_moves: felt*, castle_code: felt, en_passant_square: felt) -> (legal_moves_size: felt):
     alloc_locals
     let (local raw_moves) = alloc()
@@ -642,32 +650,38 @@ end
 
 # MOVING PIECES
 func make_move {bitwise_ptr : BitwiseBuiltin*}(
-        board: felt*, new_board: felt*, move: felt):
+        board : felt*, new_board : felt*, move : Move):
     alloc_locals
     let (local temp_board) = alloc()
-    let (local fin_y) = get_binary_word(move, 5, 3)
-    let (local fin_x) = get_binary_word(move, 2, 3)
-    let (local ini_y) = get_binary_word(move, 11, 3)
-    let (local ini_x) = get_binary_word(move, 8, 3)
-    let (local extra_info) = get_binary_word(move, 0, 2)
-    let initial_square = ini_y*8+ini_x
-    let final_square = fin_y*8+fin_x
-    let (final_piece) = resulting_piece([board+initial_square], fin_y, extra_info)
-    calculate_new_move_board(board, temp_board, 63, initial_square, final_square, final_piece)
-    if move == 15608:
+    let (local enc_origin) = point_to_felt(move.origin)
+    let (local enc_dest) = point_to_felt(move.dest)
+    let (local enc_move) = encode_move(move)
+    let (final_piece) = resulting_piece([board+enc_origin], move.dest.row, move.extra)
+    calculate_new_move_board(board, temp_board, 63, enc_origin, enc_dest, final_piece)
+    if enc_move == 15608:
         calculate_new_move_board(temp_board, new_board, 63, h1, f1, WRook) 
         return()
     end
-    if move == 15592:
+    if enc_move == 15592:
         calculate_new_move_board(temp_board, new_board, 63, a1, d1, WRook) 
         return()
     end
-    if move == 1032:
+    if enc_move == 1032:
         calculate_new_move_board(temp_board, new_board, 63, a8, d8, BRook) 
         return()
     end
-    if move == 1048:
+    if enc_move == 1048:
         calculate_new_move_board(temp_board, new_board, 63, h8, f8, BRook) 
+        return()
+    end
+    let white_en_passant_cond = ([board+enc_origin] - 20) * ([board+enc_dest] + 1) * (move.dest.col - move.origin.col) * (move.dest.col - move.origin.col)
+    if white_en_passant_cond == 1:
+        calculate_new_move_board(temp_board, new_board, 63, move.origin.row*8+move.dest.col, 64, 0)
+        return()
+    end
+    let black_en_passant_cond = ([board+enc_origin] - 28) * ([board+enc_dest] + 1) * (move.dest.col - move.origin.col) * (move.dest.col - move.origin.col)
+    if black_en_passant_cond == 1:
+        calculate_new_move_board(temp_board, new_board, 63, move.origin.row*8+move.dest.col, 64, 0)
         return()
     end
     calculate_new_move_board(temp_board, new_board, 63, 64, 64, 0) 
@@ -696,6 +710,7 @@ func resulting_piece{bitwise_ptr : BitwiseBuiltin*}(
 
 func calculate_new_move_board{bitwise_ptr : BitwiseBuiltin*}(
         board: felt*, new_board: felt*, index: felt,  initial_square: felt, final_square: felt, piece_moving: felt):
+    alloc_locals
     if index == -1:
         return()
     end
@@ -942,7 +957,7 @@ end
 
 # Creating a new array of moves only with the legal moves, given a board
 # 
-func discard_non_legal_white_moves{bitwise_ptr : BitwiseBuiltin*}(
+func discard_non_legal_white_moves{bitwise_ptr : BitwiseBuiltin*, range_check_ptr}(
         board: felt*, moves: felt*, moves_size: felt, new_moves: felt*)->(new_moves_size: felt):
     alloc_locals
     if moves_size == 0:
@@ -951,19 +966,20 @@ func discard_non_legal_white_moves{bitwise_ptr : BitwiseBuiltin*}(
     let (local added_size) = discard_non_legal_white_moves(board, moves, moves_size - 1, new_moves)
     let (local attacking_moves) = alloc()
     let (local new_board) = alloc()
-    tempvar this_move = [moves + moves_size-1]
+    local enc_move = [moves + moves_size-1]
+    let (local this_move) = parse_move(enc_move)
     make_move(board, new_board, this_move)
     let (local_rep) = get_rep([moves + moves_size-1])
     let(local attacking_size) = calculate_black_attack(new_board, 0, attacking_moves)
     let(local is_not_legal_move) = white_king_is_attacked(attacking_moves, attacking_size, new_board)
     if is_not_legal_move == 0:
-        assert [new_moves + added_size] = this_move
+        assert [new_moves + added_size] = enc_move
         return(new_moves_size = added_size + 1)
     end
     return(new_moves_size = added_size)
 end
 
-func discard_non_legal_black_moves{bitwise_ptr : BitwiseBuiltin*}(
+func discard_non_legal_black_moves{bitwise_ptr : BitwiseBuiltin*, range_check_ptr}(
         board: felt*, moves: felt*, moves_size: felt, new_moves: felt*)->(new_moves_size: felt):
     alloc_locals
     if moves_size == 0:
@@ -972,13 +988,14 @@ func discard_non_legal_black_moves{bitwise_ptr : BitwiseBuiltin*}(
     let (local added_size) = discard_non_legal_black_moves(board, moves, moves_size - 1, new_moves)
     let (local attacking_moves) = alloc()
     let (local new_board) = alloc()
-    tempvar this_move = [moves + moves_size-1]
+    local enc_move = [moves + moves_size-1]
+    let (local this_move) = parse_move(enc_move)
     make_move(board, new_board, this_move)
     let (local_rep) = get_rep([moves + moves_size-1])
     let(local attacking_size) = calculate_white_attack(new_board, 0, attacking_moves)
     let(local is_not_legal_move) = black_king_is_attacked(attacking_moves, attacking_size, new_board)
     if is_not_legal_move == 0:
-        assert [new_moves + added_size] = this_move
+        assert [new_moves + added_size] = enc_move
         return(new_moves_size = added_size + 1)
     end
     return(new_moves_size = added_size)
@@ -1031,7 +1048,7 @@ end
 # white checkmate: 1
 # black checkmate: 2
 # stalemate: 3  
-func calculate_status{bitwise_ptr : BitwiseBuiltin*}(
+func calculate_status{bitwise_ptr : BitwiseBuiltin*, range_check_ptr}(
         board: felt*, side_to_move: felt, castle_code: felt,  en_passant_code: felt)->(status: felt):
     if side_to_move == 0:
         let (result) = calculate_white_status(board, castle_code, en_passant_code)
@@ -1044,7 +1061,7 @@ func calculate_status{bitwise_ptr : BitwiseBuiltin*}(
     return(status = -1)
 end
 
-func calculate_white_status{bitwise_ptr : BitwiseBuiltin*}(
+func calculate_white_status{bitwise_ptr : BitwiseBuiltin*, range_check_ptr}(
         board: felt*, castle_code: felt, en_passant_code: felt) -> (status: felt):
     alloc_locals
     let (local moves) = alloc()
@@ -1063,7 +1080,7 @@ func calculate_white_status{bitwise_ptr : BitwiseBuiltin*}(
     return (status = 0)
 end
 
-func calculate_black_status{bitwise_ptr : BitwiseBuiltin*}(
+func calculate_black_status{bitwise_ptr : BitwiseBuiltin*, range_check_ptr}(
         board: felt*, castle_code: felt, en_passant_code: felt) -> (status: felt):
     alloc_locals
     let (local moves) = alloc()

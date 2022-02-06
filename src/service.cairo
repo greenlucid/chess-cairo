@@ -7,9 +7,12 @@ from src.core import (
     calculate_status
 )
 
-from src.state import State
+from src.state import (
+    State,
+    Move
+)
 
-func check_legality{bitwise_ptr : BitwiseBuiltin*}(
+func check_legality{bitwise_ptr : BitwiseBuiltin*, range_check_ptr}(
         state : State, move : felt) -> (is_legal : felt):
     let castle_code = state.castling_K * 8 + state.castling_Q * 4 + state.castling_k * 2 + state.castling_q
     let en_passant_code = state.passant + 16 + 24 * state.active_color
@@ -18,15 +21,15 @@ func check_legality{bitwise_ptr : BitwiseBuiltin*}(
     return(is_legal = result)
 end
 
-func advance_positions{bitwise_ptr : BitwiseBuiltin*}(
-        positions : felt*, move : felt)->(resulting_position : felt*):
+func advance_positions{bitwise_ptr : BitwiseBuiltin*, range_check_ptr}(
+        positions : felt*, move : Move)->(resulting_position : felt*):
     alloc_locals
     let (local result) = alloc()
     make_move(positions, result, move)
     return(resulting_position = result)
 end
 
-func calculate_result{bitwise_ptr : BitwiseBuiltin*}(
+func calculate_result{bitwise_ptr : BitwiseBuiltin*, range_check_ptr}(
         state : State)->(result : felt):
     let castle_code = state.castling_K * 8 + state.castling_Q * 4 + state.castling_k * 2 + state.castling_q
     let en_passant_code = state.passant + 16 + 24 * state.active_color 

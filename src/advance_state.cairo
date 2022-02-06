@@ -170,8 +170,7 @@ func advance_state{
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr
         }(state : State, move : Move) -> (next_state : State):
     alloc_locals
-    let (encoded_move) = encode_move(move) # to feed advance_position until optimized
-    let (local next_positions) = advance_positions(positions=state.positions, move=encoded_move)
+    let (local next_positions) = advance_positions(positions=state.positions, move=move)
     let (local next_active_color) = advance_active_color(state.active_color)
     let (local enc_origin) = point_to_felt(move.origin)
     let (local next_castling_K) = advance_castling_K(state.castling_K, enc_origin)
