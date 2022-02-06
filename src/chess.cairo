@@ -197,11 +197,21 @@ func make_move{
 
     let (move_count) = n_moves()
     moves.write(move_count, move)
+    return ()
+end
+
+@external
+func write_result{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+        bitwise_ptr : BitwiseBuiltin*, range_check_ptr
+        }() -> ():
+    alloc_locals
+    let (current_finality) = finality.read()
+    assert current_finality = 0
+
+    let (local state) = actual_state()
     let (local result) = calculate_result(state)
-    if result != 0:
-        finality.write(result)
-        return ()
-    end
+    finality.write(result)
     return ()
 end
 

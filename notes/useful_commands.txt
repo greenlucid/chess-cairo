@@ -1,0 +1,3 @@
+I'm tired of having to look these up every time so I'll just leave them here
+
+starknet-compile src/chess.cairo --output contract_compiled.json --abi contract_abi.json
