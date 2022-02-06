@@ -674,12 +674,12 @@ func make_move {output_ptr : felt*, bitwise_ptr : BitwiseBuiltin*}(
     end
         let white_en_passant_cond = ([board+initial_square] - 20) * ([board+final_square] + 1) * (fin_x - ini_x) * (fin_x - ini_x)
     if white_en_passant_cond == 1:
-        calculate_new_move_board(temp_board, new_board, 63, fin_y*8+ini_x, 64, 0)
+        calculate_new_move_board(temp_board, new_board, 63, ini_y*8+fin_x, 64, 0)
         return()
     end
     let black_en_passant_cond = ([board+initial_square] - 28) * ([board+final_square] + 1) * (fin_x - ini_x) * (fin_x - ini_x)
     if black_en_passant_cond == 1:
-        calculate_new_move_board(temp_board, new_board, 63, fin_y*8+ini_x, 64, 0)
+        calculate_new_move_board(temp_board, new_board, 63, ini_y*8+fin_x, 64, 0)
         return()
     end
     calculate_new_move_board(temp_board, new_board, 63, 64, 64, 0) 
