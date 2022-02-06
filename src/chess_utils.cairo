@@ -498,16 +498,15 @@ func point_to_felt(point : Point) -> (value : felt):
     return (value=value)
 end
 
+# 582 steps
 func parse_move{
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr
         }(encoded_move : felt) -> (move : Move):
     alloc_locals
-    let (local enc_origin) = bits_at(el=encoded_move, offset=237, size=6)
-    let (local origin_row) = bits_at(el=enc_origin, offset=245, size=3)
-    let (local origin_col) = bits_at(el=enc_origin, offset=248, size=3)
-    let (local enc_dest) = bits_at(el=encoded_move, offset=243, size=6)
-    let (local dest_row) = bits_at(el=enc_dest, offset=245, size=3)
-    let (local dest_col) = bits_at(el=enc_dest, offset=248, size=3)
+    let (local origin_row) = bits_at(el=encoded_move, offset=237, size=3)
+    let (local origin_col) = bits_at(el=encoded_move, offset=240, size=3)
+    let (local dest_row) = bits_at(el=encoded_move, offset=243, size=3)
+    let (local dest_col) = bits_at(el=encoded_move, offset=246, size=3)
     let (local extra) = bits_at(el=encoded_move, offset=249, size=2)
     local origin : Point = Point(row=origin_row, col=origin_col)
     local dest : Point = Point(row=dest_row, col=dest_col)
