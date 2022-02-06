@@ -482,8 +482,8 @@ func dissect_move{
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr
         }(move : felt) -> (origin : felt, dest : felt, extra : felt):
     alloc_locals
-    let (local origin) = bits_at(el=move, offset=0, size=6)
-    let (local dest) = bits_at(el=move, offset=6, size=6)
-    let (local extra) = bits_at(el=move, offset=12, size=2)
+    let (local origin) = bits_at(el=move, offset=237, size=6)
+    let (local dest) = bits_at(el=move, offset=243, size=6)
+    let (local extra) = bits_at(el=move, offset=249, size=2)
     return (origin, dest, extra)
 end

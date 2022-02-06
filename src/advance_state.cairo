@@ -150,6 +150,17 @@ func advance_halfmove_clock{
     return (next_clock=prev_clock+1)
 end
 
+func advance_fullmove_clock(prev_active_color : felt, prev_clock : felt) -> (next_clock : felt):
+    if prev_clock == 8191:
+        return (prev_clock) # prevents overflow. treat this as Infinity
+    end
+    if prev_active_color == 1:
+        return (prev_clock + 1)
+    end
+    return (prev_clock)
+end
+
+
 func advance_state{
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr
         }(state : State, move : felt) -> (next_state : State):
@@ -163,7 +174,7 @@ func advance_state{
     let (local next_castling_q) = advance_castling_q(state.castling_q, origin)
     let (local next_passant) = advance_passant(state.positions, move)
     let (local next_halfmove_clock) = advance_halfmove_clock(state.positions, move, state.halfmove_clock)
-    local next_fullmove_clock = state.fullmove_clock + 1
+    let (local next_fullmove_clock) = advance_fullmove_clock(state.active_color, state.fullmove_clock)
 
     local next_state : State = State(positions=next_positions, active_color=next_active_color,
         castling_K=next_castling_K, castling_Q=next_castling_Q, castling_k=next_castling_k, castling_q=next_castling_q,

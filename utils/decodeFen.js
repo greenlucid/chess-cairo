@@ -1,4 +1,6 @@
-const hexEncoding = "0x633adf359c77bdef7bde8000000056b5ad6b5ac2329d25183e0000040000000"
+const encoding =
+  "-813315934022943534308972821622694206809755807397398147385148727434651107329"
+const prime = 3618502788666131213697322783095070105623107215331596699973092056135872020481n // 2**251 + 17 * 2**192 + 1
 
 const charToCode = {
   r: "11000",
@@ -24,17 +26,21 @@ const passantToCode = {
   e: "0100",
   f: "0101",
   g: "0110",
-  h: "0111"
+  h: "0111",
 }
 
-const codeToChar = (code) => Object.keys(charToCode).find(char => charToCode[char] === code)
+const codeToChar = (code) =>
+  Object.keys(charToCode).find((char) => charToCode[char] === code)
 
-const codeToPassant = (code) => Object.keys(passantToCode).find(char => passantToCode[char] === code)
+const codeToPassant = (code) =>
+  Object.keys(passantToCode).find((char) => passantToCode[char] === code)
 
 const decodePositions = (encoding, pointer = 0) => {
   const rows = []
   while (rows.length < 8) {
-    let rowCount = 0, emptyCount = 0, row = ""
+    let rowCount = 0,
+      emptyCount = 0,
+      row = ""
     while (rowCount + emptyCount < 8) {
       const bit = encoding[pointer]
       if (bit == "0") {
@@ -47,25 +53,31 @@ const decodePositions = (encoding, pointer = 0) => {
         row += text
         rowCount += emptyCount + 1
         emptyCount = 0
-        pointer+=5
+        pointer += 5
       }
     }
     if (emptyCount !== 0) row += `${emptyCount}`
     rows.push(row)
   }
 
-  return {pointer, fen: rows.join("/")}
+  return { pointer, fen: rows.join("/") }
 }
 
-const decodeActiveColor = (encoding, pointer) => ({ pointer: pointer + 1, fen: encoding[pointer] === "0" ? "w" : "b" })
+const decodeActiveColor = (encoding, pointer) => ({
+  pointer: pointer + 1,
+  fen: encoding[pointer] === "0" ? "w" : "b",
+})
 
 const decodeCastlings = (encoding, pointer) => {
   const chars = "KQkq"
   let reals = ""
-  encoding.substring(pointer, pointer + 4).split("").forEach((bit, i) => {
-    if (bit === "1") reals += chars[i]
-  })
-  return {pointer: pointer + 4, fen: reals.length === 0 ? "-" : reals}
+  encoding
+    .substring(pointer, pointer + 4)
+    .split("")
+    .forEach((bit, i) => {
+      if (bit === "1") reals += chars[i]
+    })
+  return { pointer: pointer + 4, fen: reals.length === 0 ? "-" : reals }
 }
 
 const decodePassant = (encoding, pointer, activeColor) => {
@@ -76,44 +88,63 @@ const decodePassant = (encoding, pointer, activeColor) => {
     const row = activeColor === "w" ? "6" : "3"
     passant = passantFirst + row
   }
-  return {pointer: pointer + 4, fen: passant}
+  return { pointer: pointer + 4, fen: passant }
 }
 
 const decodeHalfmoveClock = (encoding, pointer) => {
   const encodedClock = encoding.substring(pointer, pointer + 7)
-  return {pointer: pointer + 7, fen: `${parseInt(encodedClock, 2)}`}
+  return { pointer: pointer + 7, fen: `${parseInt(encodedClock, 2)}` }
 }
 
 const decodeFullmoveClock = (encoding, pointer) => {
   const encodedClock = encoding.substring(pointer, pointer + 13)
-  return {pointer: pointer + 13, fen: `${parseInt(encodedClock, 2)}`}
+  return { pointer: pointer + 13, fen: `${parseInt(encodedClock, 2)}` }
 }
 
 // https://stackoverflow.com/questions/39334494/converting-large-numbers-from-binary-to-decimal-and-back-in-javascript/55681265#55681265
-const parseBigInt = (str, base=10) => {
+const parseBigInt = (str, base = 10) => {
+  const minusMult = str[0] === "-" ? -1n : 1n
+  if (minusMult === -1n) str = str.substring(1)
   b = BigInt(base)
   var bigint = BigInt(0)
   for (var i = 0; i < str.length; i++) {
-    var code = str[str.length-1-i].charCodeAt(0) - 48; if(code >= 10) code -= 39
-    bigint += b**BigInt(i) * BigInt(code)
+    let code = str[str.length - 1 - i].charCodeAt(0) - 48
+    if (code >= 10) code -= 39
+    bigint += b ** BigInt(i) * BigInt(code)
   }
-  return bigint
+  return bigint * minusMult
 }
 
 const hexToBin = (hex) => {
   const bigInt = parseBigInt(hex.substring(2), 16)
+  console.log(bigInt.toString(2))
   return bigInt.toString(2)
 }
 
-const decodeFen = (hexEncoding) => {
-  const encoding = hexToBin(hexEncoding)
+const decToBin = (dec) => {
+  const bigint = parseBigInt(dec, 10)
+  const unsigned = bigint < 0n ? (prime + bigint) : bigint
+  console.log(unsigned.toString(2))
+  return unsigned.toString(2)
+}
+
+const rawEncodingToBin = (rawEncoding) => {
+  const isHex = rawEncoding[1] === "x"
+  if (isHex) return hexToBin(rawEncoding)
+  else return decToBin(rawEncoding)
+}
+
+const decodeFen = (rawEncoding) => {
+  const encoding = rawEncodingToBin(rawEncoding)
   const pos = decodePositions(encoding)
   const color = decodeActiveColor(encoding, pos.pointer)
   const castlings = decodeCastlings(encoding, color.pointer)
   const passant = decodePassant(encoding, castlings.pointer, color.fen)
   const halfclock = decodeHalfmoveClock(encoding, passant.pointer)
   const fullclock = decodeFullmoveClock(encoding, halfclock.pointer)
-  return [pos, color, castlings, passant, halfclock, fullclock].map(thing => thing.fen).join(" ")
+  return [pos, color, castlings, passant, halfclock, fullclock]
+    .map((thing) => thing.fen)
+    .join(" ")
 }
 
-console.log(decodeFen(hexEncoding))
+console.log(decodeFen(encoding))

@@ -19,7 +19,7 @@ end
 func bit_at{
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr
         }(el : felt, offset : felt) -> (bit : felt):
-    let exp = 251 - offset
+    let exp = 250 - offset
     let (mask) = pow(2, exp)
     let (result) = bitwise_and(el, mask)
     if result == 0:

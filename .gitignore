@@ -1,2 +1,4 @@
 contract_abi.json
 contract_compiled.json
+test_compiled.json
+testzone/

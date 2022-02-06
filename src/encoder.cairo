@@ -1,5 +1,3 @@
-%lang starknet
-
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.pow import pow
