@@ -30,6 +30,8 @@ from src.service import (
     calculate_result
 )
 
+from src.chess_utils import parse_move
+
 const WHITE = 0
 const BLACK = 1
 const GOVERNOR = 2
@@ -75,7 +77,8 @@ func state_advancer{
         return (final_state=state)
     end
     alloc_locals
-    let (move) = moves.read(curr)
+    let (enc_move) = moves.read(curr)
+    let (move) = parse_move(enc_move)
     # this is a struct so it may break
     let (next_state) = advance_state(state, move)
     let (final_state) = state_advancer(next_state, curr+1, remain-1)
@@ -186,17 +189,17 @@ end
 func make_move{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr
-        }(move : felt, as_player : felt) -> ():
+        }(enc_move : felt, as_player : felt) -> ():
     alloc_locals
     regular_player_asserts(as_player)
     let (local state) = actual_state()
     assert as_player = state.active_color
     
-    let (legality) = check_legality(state, move)
+    let (legality) = check_legality(state, enc_move)
     assert legality = 1
 
     let (move_count) = n_moves()
-    moves.write(move_count, move)
+    moves.write(move_count, enc_move)
     return ()
 end
 

@@ -9,3 +9,14 @@ struct State:
     member halfmove_clock : felt
     member fullmove_clock : felt
 end
+
+struct Point:
+    member row : felt
+    member col : felt
+end
+
+struct Move:
+    member origin : Point
+    member dest : Point
+    member extra : felt
+end

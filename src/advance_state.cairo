@@ -1,11 +1,18 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.alloc import alloc
 
-from src.state import State
+from src.state import (
+    State,
+    Move,
+    Point
+)
 
 from src.bit_helper import bits_at
 
-from src.chess_utils import dissect_move
+from src.chess_utils import (
+    encode_move,
+    point_to_felt
+)
 
 from src.service import advance_positions
 
@@ -78,13 +85,10 @@ end
 
 func advance_passant{
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr
-        }(prev_positions : felt*, move : felt) -> (next_passant : felt):
+        }(prev_positions : felt*, move : Move, enc_origin : felt) -> (next_passant : felt):
     alloc_locals
-    let (origin, dest, _) = dissect_move(move)
-    # if |origin - dest| == 16, then it has the same format as a double step move
-    local distance = origin - dest
     # check if piece in origin is pawn
-    let piece = [prev_positions+origin]
+    let piece = [prev_positions+enc_origin]
     if piece == WHITE_PAWN:
         jmp distance_check
     end
@@ -92,12 +96,12 @@ func advance_passant{
         jmp distance_check
     end
     return (next_passant=NO_PASSANT)
-
     distance_check:
-    if distance == 16:
-        jmp considered_passant 
+    local distance = move.origin.row - move.dest.row
+    if distance == 2:
+        jmp considered_passant
     end
-    if distance == -16:
+    if distance == -2:
         jmp considered_passant
     end
     return (next_passant=NO_PASSANT)
@@ -107,16 +111,16 @@ func advance_passant{
     # 14 total. 251 - 14 -> 237
     # you want to get the col, each point has 3 bits (RRRCCC)
     # so col is in bits [240, 242]
-    let (col) = bits_at(el=move, offset=240, size=3)
+    let col = move.origin.col
     return (next_passant=col)
 end
 
 func was_move_irreversible{
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr
-        }(prev_positions : felt*, move : felt) -> (reply : felt):
+        }(prev_positions : felt*, move : Move) -> (reply : felt):
     alloc_locals
-    let (local origin, local dest, _) = dissect_move(move)
-    let piece = [prev_positions + origin]
+    let (enc_origin) = point_to_felt(move.origin)
+    let piece = [prev_positions + enc_origin]
     # is it pawn?
     if piece == WHITE_PAWN:
         return (reply=1)
@@ -126,7 +130,8 @@ func was_move_irreversible{
     end
 
     # is it taking a piece?
-    let landing = [prev_positions + dest]
+    let (enc_dest) = point_to_felt(move.dest)
+    let landing = [prev_positions + enc_dest]
     if landing == 0:
         return (reply=0)
     end
@@ -136,7 +141,7 @@ end
 
 func advance_halfmove_clock{
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr
-        }(prev_positions : felt*, move : felt, prev_clock : felt) -> (next_clock : felt):
+        }(prev_positions : felt*, move : Move, prev_clock : felt) -> (next_clock : felt):
     let (irreversible) = was_move_irreversible(prev_positions, move)
     if irreversible == 1:
         return (next_clock=0)
@@ -163,16 +168,17 @@ end
 
 func advance_state{
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr
-        }(state : State, move : felt) -> (next_state : State):
+        }(state : State, move : Move) -> (next_state : State):
     alloc_locals
-    let (local next_positions) = advance_positions(positions=state.positions, move=move)
+    let (encoded_move) = encode_move(move) # to feed advance_position until optimized
+    let (local next_positions) = advance_positions(positions=state.positions, move=encoded_move)
     let (local next_active_color) = advance_active_color(state.active_color)
-    let (local origin, _, _) = dissect_move(move)
-    let (local next_castling_K) = advance_castling_K(state.castling_K, origin)
-    let (local next_castling_Q) = advance_castling_Q(state.castling_Q, origin)
-    let (local next_castling_k) = advance_castling_k(state.castling_k, origin)
-    let (local next_castling_q) = advance_castling_q(state.castling_q, origin)
-    let (local next_passant) = advance_passant(state.positions, move)
+    let (local enc_origin) = point_to_felt(move.origin)
+    let (local next_castling_K) = advance_castling_K(state.castling_K, enc_origin)
+    let (local next_castling_Q) = advance_castling_Q(state.castling_Q, enc_origin)
+    let (local next_castling_k) = advance_castling_k(state.castling_k, enc_origin)
+    let (local next_castling_q) = advance_castling_q(state.castling_q, enc_origin)
+    let (local next_passant) = advance_passant(state.positions, move, enc_origin)
     let (local next_halfmove_clock) = advance_halfmove_clock(state.positions, move, state.halfmove_clock)
     let (local next_fullmove_clock) = advance_fullmove_clock(state.active_color, state.fullmove_clock)
 

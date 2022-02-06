@@ -1,3 +1,5 @@
 I'm tired of having to look these up every time so I'll just leave them here
 
 starknet-compile src/chess.cairo --output contract_compiled.json --abi contract_abi.json
+cairo-compile src/test.cairo --output test_compiled.json
+cairo-run --program=test_compiled.json --print_output --layout=all --print_info

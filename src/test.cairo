@@ -12,6 +12,9 @@ from src.service import (
 from src.advance_state import (
     advance_state
 )
+from src.chess_utils import (
+    parse_move
+)
 
 from starkware.cairo.common.serialize import serialize_word
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
@@ -53,15 +56,17 @@ func main{output_ptr : felt*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*}():
     serialize_word(reencoding)
     serialize_word(222222222222222222222222222222222)
     # Test legality
-    const move_e4 = 13456
-    const move_e2_to_f4 = 13460
-    const move_e4_alt = 13457 # like, "promotion"
-    let (local legality) = check_legality(state, move_e4)
-    let (local legality_2) = check_legality(state, move_e2_to_f4)
-    let (local legality_3) = check_legality(state, move_e4_alt)
+    const enc_move_e4 = 13456
+    const enc_move_e2_to_f4 = 13460
+    const enc_move_e4_alt = 13457 # like, "promotion"
+    let (local move_e4) = parse_move(enc_move_e4)
+
+    let (local legality) = check_legality(state, enc_move_e4)
+    #let (local legality_2) = check_legality(state, enc_move_e2_to_f4)
+    #let (local legality_3) = check_legality(state, enc_move_e4_alt)
     serialize_word(legality) # expect 1
-    serialize_word(legality_2) # expect 0
-    serialize_word(legality_3) # expect 0
+    #serialize_word(legality_2) # expect 0
+    #serialize_word(legality_3) # expect 0
     # Test advance state after e4
     serialize_word(777777777777777777777777777777777777777777)
     serialize_word(777777777777777777777777777777777777777777)
@@ -75,7 +80,7 @@ func main{output_ptr : felt*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*}():
     # Test finality of the game
     serialize_word(777777777777777777777777777777777777777777)
     serialize_word(777777777777777777777777777777777777777777)
-    let (local finality) = calculate_result(next_state)
-    serialize_word(finality)
+    #let (local finality) = calculate_result(next_state)
+    #serialize_word(finality)
     return ()
 end

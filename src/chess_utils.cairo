@@ -7,6 +7,11 @@ from starkware.cairo.common.bitwise import bitwise_and
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from src.bit_helper import bits_at
 
+from src.state import (
+    Move,
+    Point
+)
+
 # CONSTANT VALUES FOR CHESS CAIRO
 # Lenght of the pattern
 const word_lenght = 4
@@ -486,4 +491,31 @@ func dissect_move{
     let (local dest) = bits_at(el=move, offset=243, size=6)
     let (local extra) = bits_at(el=move, offset=249, size=2)
     return (origin, dest, extra)
+end
+
+func point_to_felt(point : Point) -> (value : felt):
+    tempvar value = point.row * 8 + point.col
+    return (value=value)
+end
+
+func parse_move{
+        bitwise_ptr : BitwiseBuiltin*, range_check_ptr
+        }(encoded_move : felt) -> (move : Move):
+    alloc_locals
+    let (local enc_origin) = bits_at(el=encoded_move, offset=237, size=6)
+    let (local origin_row) = bits_at(el=enc_origin, offset=245, size=3)
+    let (local origin_col) = bits_at(el=enc_origin, offset=248, size=3)
+    let (local enc_dest) = bits_at(el=encoded_move, offset=243, size=6)
+    let (local dest_row) = bits_at(el=enc_dest, offset=245, size=3)
+    let (local dest_col) = bits_at(el=enc_dest, offset=248, size=3)
+    let (local extra) = bits_at(el=encoded_move, offset=249, size=2)
+    local origin : Point = Point(row=origin_row, col=origin_col)
+    local dest : Point = Point(row=dest_row, col=dest_col)
+    local move : Move = Move(origin=origin, dest=dest, extra=extra)
+    return (move=move)
+end
+
+func encode_move(move : Move) -> (enc_move : felt):
+    tempvar enc_move = move.origin.row * 2048 + move.origin.col * 256 + move.dest.row * 32 + move.dest.col * 4 + move.extra
+    return (enc_move=enc_move)
 end
