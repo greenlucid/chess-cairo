@@ -6,6 +6,7 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bitwise import bitwise_and
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from src.bit_helper import bits_at
+from src.pow2 import pow2
 
 from src.state import (
     Move,
@@ -202,11 +203,11 @@ end
 func get_pattern_word{bitwise_ptr : BitwiseBuiltin*}(pattern: felt, index: felt) -> (word: felt):
     alloc_locals
     # WORD CALCULATION: Get 2^(bit+1) - Example 4 bits word: 10000
-    let (local bin_word_pow) = binpow(word_lenght)
+    let (local bin_word_pow) = pow2(word_lenght)
     # INDEX CALCULATION: Get the bin position for the bit-th word - Ex: 4 bits word, index 2: result 9
     let word_index = index * word_lenght
     # Get the corresponding power of two for that bin_index - Ex: 2^9
-    let (bin_index) = binpow(word_index)
+    let (bin_index) = pow2(word_index)
     # Set the word in the index - Ex: 111100000000
     let word_in_index = bin_index * (bin_word_pow - 1)
     # CALCULATE WORD IN THE CODE
@@ -216,18 +217,6 @@ func get_pattern_word{bitwise_ptr : BitwiseBuiltin*}(pattern: felt, index: felt)
     # Return the value
     return(word=word)
 
-end
-
-# Returns 2^pow for a given pow
-# Maybe this func should be replaced with the builtin.
-func binpow {bitwise_ptr : BitwiseBuiltin*}(pow: felt)->(res:felt):
-    if pow == 0:
-        return(res=1)
-    else:
-        let(res1) = binpow(pow-1)
-        tempvar result = res1 * 2
-    end
-    return(res = result)
 end
 
 # -----------------------------------------------------------------
@@ -421,11 +410,11 @@ func get_binary_word{bitwise_ptr : BitwiseBuiltin*}(
         binary_tape: felt, binary_index: felt, binary_word_length: felt) -> (word: felt):
     alloc_locals
     # WORD CALCULATION: Get 2^(bit+1) - Example 4 bits word: 10000
-    let (local bin_word_pow) = binpow(binary_word_length)
+    let (local bin_word_pow) = pow2(binary_word_length)
     # INDEX CALCULATION: Get the bin position for the bit-th word - Ex: 4 bits word, index 2: result 9
     let word_index = binary_index
     # Get the corresponding power of two for that bin_index - Ex: 2^9
-    let (bin_index) = binpow(word_index)
+    let (bin_index) = pow2(word_index)
     # Set the word in the index - Ex: 111100000000
     let word_in_index = bin_index * (bin_word_pow - 1)
     # CALCULATE WORD IN THE CODE
@@ -439,8 +428,8 @@ end
 func put_binary_word{bitwise_ptr : BitwiseBuiltin*}(
         binary_tape: felt, binary_index: felt, binary_word_length: felt, binary_word: felt) -> (new_tape: felt):
     alloc_locals
-    let (local binary_word_room) = binpow(binary_word_length)
-    let (local binary_index_power) = binpow(binary_index)
+    let (local binary_word_room) = pow2(binary_word_length)
+    let (local binary_index_power) = pow2(binary_index)
     let binary_rest = bitwise_and(binary_tape, binary_index-1)
     let truncated_tape = binary_tape - binary_rest 
 
