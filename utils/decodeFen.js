@@ -1,5 +1,5 @@
 const encoding =
-  "-813315934022943534308972821622694206809755807397398147385148727434651107329"
+  "2805186854643187679388349961472375898813351407934198552587943328701220913152"
 const prime = 3618502788666131213697322783095070105623107215331596699973092056135872020481n // 2**251 + 17 * 2**192 + 1
 
 const charToCode = {
@@ -117,14 +117,12 @@ const parseBigInt = (str, base = 10) => {
 
 const hexToBin = (hex) => {
   const bigInt = parseBigInt(hex.substring(2), 16)
-  console.log(bigInt.toString(2))
   return bigInt.toString(2)
 }
 
 const decToBin = (dec) => {
   const bigint = parseBigInt(dec, 10)
-  const unsigned = bigint < 0n ? (prime + bigint) : bigint
-  console.log(unsigned.toString(2))
+  const unsigned = bigint < 0n ? (prime + bigint) : bigInt
   return unsigned.toString(2)
 }
 

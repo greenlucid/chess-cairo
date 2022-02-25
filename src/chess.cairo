@@ -15,7 +15,7 @@ from starkware.starknet.common.syscalls import (
     get_contract_address
 )
 
-from src.state import State
+from src.structs import State
 from src.advance_state import advance_state
 
 from src.decoder import decode_state

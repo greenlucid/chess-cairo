@@ -7,35 +7,46 @@ from src.core import (
     calculate_status
 )
 
-from src.state import (
+from src.chess_utils import get_square
+
+from src.structs import (
     State,
-    Move
+    Move,
+    Meta,
+    Square
 )
 
 func check_legality{bitwise_ptr : BitwiseBuiltin*, range_check_ptr}(
-        state : State, move : felt) -> (is_legal : felt):
-    let castle_code = state.castling_K * 8 + state.castling_Q * 4 + state.castling_k * 2 + state.castling_q
-    let en_passant_code = state.passant + 16 + 24 * state.active_color
-    let (result) = is_legal_move(state.positions, castle_code, en_passant_code, move)
+        state : State, move : Move) -> (is_legal : felt):
+    alloc_locals
+    let (local passant_square : Square) = get_square(state.passant + 16 + 24 * state.active_color)
+    let meta : Meta = Meta(active_color = state.active_color, castling_K = state.castling_K, castling_Q = state.castling_Q,
+        castling_k = state.castling_k, castling_q = state.castling_q, passant = passant_square) 
+    let board : felt* = state.positions
+    let (result) = is_legal_move(board, meta, move)
     
     return(is_legal = result)
 end
 
 func advance_positions{bitwise_ptr : BitwiseBuiltin*, range_check_ptr}(
-        positions : felt*, move : Move)->(resulting_position : felt*):
+        state : State, move : Move)->(resulting_position : felt*):
     alloc_locals
-    let (local result) = alloc()
-    make_move(positions, result, move)
+    let (local passant_square : Square) = get_square(state.passant + 16 + 24 * state.active_color)
+    let meta : Meta = Meta (active_color = state.active_color, castling_K = state.castling_K, castling_Q = state.castling_Q,
+        castling_k = state.castling_k, castling_q = state.castling_q, passant = passant_square) 
+    let board : felt* = state.positions
+    let (local result : felt*) = make_move(board, move, meta)
     return(resulting_position = result)
 end
 
 func calculate_result{bitwise_ptr : BitwiseBuiltin*, range_check_ptr}(
         state : State)->(result : felt):
-    let castle_code = state.castling_K * 8 + state.castling_Q * 4 + state.castling_k * 2 + state.castling_q
-    let en_passant_code = state.passant + 16 + 24 * state.active_color 
-    let side_to_move = state.active_color
-    let (status) = calculate_status(state.positions, side_to_move, castle_code, en_passant_code)
+    alloc_locals
+    let (local passant_square : Square) = get_square(state.passant + 16 + 24 * state.active_color)
+    let meta : Meta = Meta (active_color = state.active_color, castling_K = state.castling_K, castling_Q = state.castling_Q,
+        castling_k = state.castling_k, castling_q = state.castling_q, passant = passant_square) 
+    let board : felt* = state.positions
+    let (status) = calculate_status(board, meta)
 
     return(result = status)
 end
-    

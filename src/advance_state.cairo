@@ -1,10 +1,10 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.alloc import alloc
 
-from src.state import (
+from src.structs import (
     State,
     Move,
-    Point
+    Square
 )
 
 from src.bit_helper import bits_at
@@ -170,7 +170,7 @@ func advance_state{
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr
         }(state : State, move : Move) -> (next_state : State):
     alloc_locals
-    let (local next_positions) = advance_positions(positions=state.positions, move=move)
+    let (local next_positions) = advance_positions(state=state, move=move)
     let (local next_active_color) = advance_active_color(state.active_color)
     let (local enc_origin) = point_to_felt(move.origin)
     let (local next_castling_K) = advance_castling_K(state.castling_K, enc_origin)

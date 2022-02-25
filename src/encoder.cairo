@@ -1,7 +1,7 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.alloc import alloc
 
-from src.state import State
+from src.structs import State
 
 from src.bit_helper import (
     append_bits,
