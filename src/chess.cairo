@@ -194,8 +194,9 @@ func make_move{
     regular_player_asserts(as_player)
     let (local state) = actual_state()
     assert as_player = state.active_color
-    
-    let (legality) = check_legality(state, enc_move)
+
+    let (local move) = parse_move(enc_move)
+    let (legality) = check_legality(state, move)
     assert legality = 1
 
     let (move_count) = n_moves()
