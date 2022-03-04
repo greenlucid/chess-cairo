@@ -37,7 +37,7 @@ const BLACK = 1
 const GOVERNOR = 2
 
 @storage_var
-func players(color : felt) -> (address : felt):
+func players(i : felt) -> (address : felt):
 end
 
 @storage_var
@@ -100,8 +100,8 @@ func assert_sender_is{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
         range_check_ptr}(color : felt) -> ():
     let (sender) = get_contract_address()
-    let (governor) = players.read(color)
-    assert governor = sender
+    let (player) = players.read(color)
+    assert player = sender
     return ()
 end
 
@@ -147,6 +147,14 @@ func move_counter{
 end
 
 # VIEW FUNCS
+
+@view
+func get_player{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+        range_check_ptr}(i : felt) -> (player : felt):
+    let (player) = players.read(i)
+    return (player=player)
+end
 
 @view
 func current_state{

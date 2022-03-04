@@ -1,4 +1,5 @@
-contract_abi.json
-contract_compiled.json
+chess_abi.json
+chess_compiled.json
 test_compiled.json
 testzone/
+notes/test_session1.txt
