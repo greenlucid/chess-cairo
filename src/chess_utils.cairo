@@ -6,6 +6,7 @@
 
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bitwise import bitwise_and
+from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from src.bit_helper import bits_at
 from src.pow2 import pow2
@@ -30,76 +31,420 @@ const BKing = 28
 const BPawn = 29
 
 # Checks that the coordinate is not -2, -1, 8 or 9
-func in_range (square: Square) -> (in_range: felt):
-    tempvar condition_1 = (square.col + 2) * (square.col + 1) * (square.col - 8) * (square.col - 9)
-    tempvar condition_2 = (square.row + 2) * (square.row + 1) * (square.row - 8) * (square.row - 9)
-    tempvar condition = condition_1 * condition_2
-    if condition == 0:
-        return (in_range = 0)
-    else:
-    return (in_range = 1)
-    end
+# 0: out, 1: in
+# this makes input range [0, 11] for each col / row so 144 possible results
+func in_range(square: Square) -> (in_range: felt):
+    tempvar i = (square.row + 2) * 12 + (square.col + 2)
+    let (data_address) = get_label_location(in_range_data)
+    return ([data_address + i])
+    in_range_data:
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
 end
 
 func board_index (square: Square) -> (board_index: felt):
     return (square.col + square.row * 8)
 end
 
-# "content" are the values in the board array
-# compare_square_content returns: 0 = different color, 1 = same color, 2 = both empty, 3 = first empty, 4 = second empty, 5 = error (at least one code wrong)
+# "content" are the values in the board array. this func compares the content (e.g. pieces) of two squares.
+# 0: different color, 1: same color, 2: both empty, 3: first empty, 4: second empty, 5: error (at least one code wrong)
 func compare_square_content(content_1 : felt, content_2 : felt) -> (compare_square_content : felt):
-    tempvar content_1_white = (content_1 - WRook) * (content_1 - WKnight) * (content_1 - WBishop) * (content_1 - WQueen) * (content_1 - WKing) * (content_1 - WPawn) + 1
-    tempvar content_2_white = (content_2 - WRook) * (content_2 - WKnight) * (content_2 - WBishop) * (content_2 - WQueen) * (content_2 - WKing) * (content_2 - WPawn) + 1
-    tempvar content_1_black = (content_1 - BRook) * (content_1 - BKnight) * (content_1 - BBishop) * (content_1 - BQueen) * (content_1 - BKing) * (content_1 - BPawn) + 1
-    tempvar content_2_black = (content_2 - BRook) * (content_2 - BKnight) * (content_2 - BBishop) * (content_2 - BQueen) * (content_2 - BKing) * (content_2 - BPawn) + 1
-    tempvar content_1_empty = content_1 + 1
-    tempvar content_2_empty = content_2 + 1
-    tempvar cond_1 = content_1_white * content_2_white
-    if cond_1 == 1:
-        return(compare_square_content = 1)
+    if content_1 == 0:
+        if content_2 == 0:
+            return (2)
+        end
+        return (3)
     end
-    tempvar cond_2 = content_1_black * content_2_black
-    if cond_2 == 1:
-        return(compare_square_content = 1)
+    if content_2 == 0:
+        return (4)
     end
-    tempvar cond_3 = content_1_white * content_2_black
-    if cond_3 == 1:
-        return(compare_square_content = 0)
-    end
-    tempvar cond_4 = content_1_black * content_2_white
-    if cond_4 == 1:
-        return(compare_square_content = 0)
-    end
-    tempvar cond_5 = content_1_empty * content_2_empty
-    if cond_5 == 1:
-        return (compare_square_content = 2)
-    end
-    if content_1_empty == 1:
-        return(compare_square_content = 3)
-    end 
-    if content_2_empty == 1:
-        return(compare_square_content = 4)
-    end 
-    return(compare_square_content = 5)
+
+    # Now both are values between [16, 29], so map it to [0, 13] (14 values)
+    # 14 * 14 = 196 dw lines
+
+    let (data_address) = get_label_location(square_compares_data)
+    tempvar i = (content_1 - 16) * 14 + (content_2 - 16)
+    return ([data_address + i])
+    square_compares_data:
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 5
+    dw 5
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 5
+    dw 5
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 5
+    dw 5
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 5
+    dw 5
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 5
+    dw 5
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 5
+    dw 5
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 5
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 5
+    dw 5
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 5
+    dw 5
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 5
+    dw 5
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 5
+    dw 5
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 5
+    dw 5
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 0
+    dw 5
+    dw 5
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
 end
 
-# square_content = 0: empty square; square_content = 1: white piece; square_content = 2: black piece; square_content = 3: None of the above (error) 
+# 0: empty square, 1: white piece, 2: black piece, 3: error
 func square_content (board: felt*, square: Square) -> (square_content: felt):
-    let (square_index) = board_index (square)
+    let (square_index) = board_index(square)
     tempvar current_piece = [board + square_index]
     
-    if current_piece == 0:
-        return (square_content = 0)
-    end
-    tempvar is_white_piece = (current_piece-WRook) * (current_piece-WKnight) * (current_piece-WBishop) * (current_piece-WQueen) * (current_piece-WKing) * (current_piece-WPawn) + 1
-    if is_white_piece == 1:
-        return (square_content = 1)
-    end
-    tempvar is_black_piece = (current_piece-BRook) * (current_piece-BKnight) * (current_piece-BBishop) * (current_piece-BQueen) * (current_piece-BKing) * (current_piece-BPawn) + 1
-    if is_black_piece == 1:
-        return (square_content = 2)
-    end
-    return (square_content = 3)
+    let (data_address) = get_label_location(square_contents_data)
+    return ([data_address + current_piece])
+    # This can be [0, 29] inclusive
+    square_contents_data:
+    dw 0
+    dw 3
+    dw 3
+    dw 3
+    dw 3
+    dw 3
+    dw 3
+    dw 3
+    dw 3
+    dw 3
+    dw 3
+    dw 3
+    dw 3
+    dw 3
+    dw 3
+    dw 3
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 1
+    dw 3
+    dw 3
+    dw 2
+    dw 2
+    dw 2
+    dw 2
+    dw 2
+    dw 2
 end
 
 # Check if a square is the final square of a set of moves - Good for looking for checks.
@@ -172,7 +517,6 @@ func point_to_felt(point : Square) -> (value : felt):
     return (value=value)
 end
 
-# 582 steps
 func parse_move{
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr
         }(encoded_move : felt) -> (move : Move):

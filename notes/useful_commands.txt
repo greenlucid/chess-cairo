@@ -9,10 +9,9 @@ export STARKNET_NETWORK=alpha-goerli && export STARKNET_WALLET=starkware.starkne
 starknet deploy_account
 
 starknet deploy --contract chess_compiled.json \
-  --inputs 0x075ec8209e6eb1dd44404e1b97423c9795d1e3f3697ec958e3e88352437290b3 \
-  0x075ec8209e6eb1dd44404e1b97423c9795d1e3f3697ec958e3e88352437290b3 \
-  0x075ec8209e6eb1dd44404e1b97423c9795d1e3f3697ec958e3e88352437290b3 \
+  --inputs 0x037e68ac9bc0e3f7dbd31e16287da8eddc72c2ae3123a55ea86acf7c2fdb39bd \
+  0x037e68ac9bc0e3f7dbd31e16287da8eddc72c2ae3123a55ea86acf7c2fdb39bd \
+  0x037e68ac9bc0e3f7dbd31e16287da8eddc72c2ae3123a55ea86acf7c2fdb39bd \
   0x633adf359c77bdef7bde8000000056b5ad6b5ac2329d25183e0000040000000
 
-See the trace of a transaction:
-starknet tx_status --hash 0x5ee58150e94c23075b67fb2406af0984d349a53c6d4c2c32451783c49b47ef8 --contract chess_compiled.json
+starknet tx_status --hash 0x421f6333201e32269100e876fec0d7758ff167a953e60c98d5e82c99d3fc505 --contract chess_compiled.json

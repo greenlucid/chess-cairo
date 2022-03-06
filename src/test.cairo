@@ -53,10 +53,10 @@ func main{output_ptr : felt*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*}():
     %}
 
     # Test result of the state
-    #let (local finality) = calculate_result(next_state)
-    #%{
-    #    print(f'finality: {ids.finality}')
-    #%}
+    let (local finality) = calculate_result(next_state)
+    %{
+        print(f'finality: {ids.finality}')
+    %}
 
     return ()
 end
