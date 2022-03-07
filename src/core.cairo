@@ -605,6 +605,40 @@ func is_legal_move (board: felt*, meta: Meta, move: Move) -> (is_legal: felt):
 
     let (serialized_move) = serialize_move(move)
 
+    let (initial_square_color) = square_content (board, move.origin)
+
+    # Check if active color and the piece moving are both white / black
+    if meta.active_color == 0:
+        if initial_square_color != 1:
+            return (is_legal = 0)
+        end
+    end
+
+    if meta.active_color == 1:    
+        if initial_square_color != 2:
+            return (is_legal = 0)
+        end
+    end
+
+    tempvar initial_square_board_index = move.origin.col + move.origin.row * 8
+    tempvar current_piece = [board + initial_square_board_index]
+
+    tempvar white_promotion_cond = (current_piece - WPawn + 1) * (move.origin.row)
+    if white_promotion_cond != 1:
+        if move.info != 0:
+            return (is_legal = 0)
+        end
+    end
+
+    tempvar black_promotion_cond = (current_piece - BPawn + 1) * (move.origin.row - 5)
+    if current_piece != 29:
+        if move.origin.row != 6:
+            if move.info != 0:
+                return (is_legal = 0)
+            end
+        end
+    end
+
     if serialized_move == 47670:
         let (castling_allowed) = castling_K_allowed(board, meta)
         if castling_allowed == 1:
