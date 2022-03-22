@@ -625,7 +625,7 @@ func is_legal_move (board: felt*, meta: Meta, move: Move) -> (is_legal: felt):
 
     tempvar white_promotion_cond = (current_piece - WPawn + 1) * (move.origin.row)
     if white_promotion_cond != 1:
-        if move.info != 0:
+        if move.extra != 0:
             return (is_legal = 0)
         end
     end
@@ -633,7 +633,7 @@ func is_legal_move (board: felt*, meta: Meta, move: Move) -> (is_legal: felt):
     tempvar black_promotion_cond = (current_piece - BPawn + 1) * (move.origin.row - 5)
     if current_piece != 29:
         if move.origin.row != 6:
-            if move.info != 0:
+            if move.extra != 0:
                 return (is_legal = 0)
             end
         end
