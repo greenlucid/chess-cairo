@@ -282,15 +282,14 @@ end
 func draw_threefold_repetition{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr
-        }(as_player : felt, a : felt, b : felt, c : felt) -> ():
+        }(as_player : felt, a : felt, b : felt) -> ():
     alloc_locals
     regular_player_asserts(as_player)
-    # assert 0 <= a < b; b < c; c < n_moves
-    let (n) = move_counter(i=0)
+    # assert 0 <= a < b; b < c; (with c being current move)
+    let (c) = move_counter(i=0)
     assert_nn(a)
     assert_lt(a, b)
     assert_lt(b, c)
-    assert_lt(c, n)
 
     let (encoded_state) = initial_state.read()
     let (first_state) = decode_state(encoded_state)
