@@ -1,21 +1,21 @@
 %builtins output range_check bitwise 
 
-from src.decoder import (
+from decoder import (
     decode_state
 )
-from src.encoder import encode_state
-from src.structs import State
-from src.service import (
+from encoder import encode_state
+from structs import State
+from service import (
     check_legality,
     calculate_result
 )
-from src.advance_state import (
+from advance_state import (
     advance_state
 )
-from src.chess_utils import (
+from chess_utils import (
     parse_move
 )
-from src.chess_console_utils import show_state
+from chess_console_utils import show_state
 
 from starkware.cairo.common.serialize import serialize_word
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
@@ -49,7 +49,7 @@ func main{output_ptr : felt*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*}():
     # Test encoding this new state
     let (local reencoding_2) = encode_state(next_state)
     %{
-        print(f'reencoding2: {ids.reencoding_2}')
+        print(f'reencoding2: {ids.reencodisrc.ng_2}')
     %}
 
     # Test result of the state

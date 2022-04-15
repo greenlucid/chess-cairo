@@ -8,10 +8,10 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bitwise import bitwise_and
 from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
-from src.bit_helper import bits_at
-from src.pow2 import pow2
+from bit_helper import bits_at
+from pow2 import pow2
 
-from src.structs import (
+from structs import (
     Move,
     Square,
     Setting

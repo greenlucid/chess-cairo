@@ -1,8 +1,8 @@
 from starkware.cairo.common.alloc import alloc
 
-from src.structs import (Pattern, Square)
+from structs import (Pattern, Square)
 
-from src.chess_utils import in_range
+from chess_utils import in_range
 
 const WRook = 16
 const WKnight = 17

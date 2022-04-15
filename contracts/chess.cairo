@@ -12,25 +12,25 @@ from starkware.cairo.common.math import (
 )
 
 from starkware.starknet.common.syscalls import (
-    get_contract_address
+    get_caller_address
 )
 
-from src.structs import State
-from src.advance_state import advance_state
+from structs import State
+from advance_state import advance_state
 
-from src.decoder import decode_state
+from decoder import decode_state
 
-from src.encoder import (
+from encoder import (
     encode_state,
     encode_board_state
 )
 
-from src.service import (
+from service import (
     check_legality,
     calculate_result
 )
 
-from src.chess_utils import parse_move
+from chess_utils import parse_move
 
 const WHITE = 0
 const BLACK = 1
@@ -99,7 +99,7 @@ end
 func assert_sender_is{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
         range_check_ptr}(color : felt) -> ():
-    let (sender) = get_contract_address()
+    let (sender) = get_caller_address()
     let (player) = players.read(color)
     assert player = sender
     return ()

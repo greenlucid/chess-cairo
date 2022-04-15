@@ -1,11 +1,11 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.alloc import alloc
 
-from src.structs import (
+from structs import (
     State
 )
 
-from src.bit_helper import (
+from bit_helper import (
     bits_at,
     bit_at
 )
@@ -36,7 +36,7 @@ func decode_active_color{
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr
         }(encoded_state : felt, offset : felt) -> (active_color : felt):
     let (bit) = bit_at(el=encoded_state, offset=offset)
-    return (color=bit)
+    return (active_color=bit)
 end
 
 func decode_state{

@@ -1,8 +1,8 @@
 from starkware.cairo.common.alloc import alloc
 
-from src.structs import Setting
+from structs import Setting
 
-from src.chess_setting import get_piece_in_square
+from chess_setting import get_piece_in_square
 
 # WORKING WITH THE BOARD
 # Constructing a board (array of 64 felts) out of a number of settings

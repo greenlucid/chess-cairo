@@ -1,6 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 
-from src.structs import Move
+from structs import Move
 
 func add_moves_lists (
         moves_list_1: Move*, moves_list_1_size: felt, moves_list_2: Move*, moves_list_2_size: felt, index: felt):

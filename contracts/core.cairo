@@ -8,7 +8,7 @@
 
 from starkware.cairo.common.alloc import alloc
 
-from src.structs import (
+from structs import (
     Square,
     Pattern,
     Move,
@@ -17,7 +17,7 @@ from src.structs import (
     Setting
 )
 
-from src.chess_utils import (
+from chess_utils import (
     in_range,
     compare_square_content,
     square_content,
@@ -28,29 +28,29 @@ from src.chess_utils import (
     check_final_square
 )
 
-from src.chess_moves import (
+from chess_moves import (
     add_move,
     add_move_blind,
     serialize_move,
     add_moves_lists
 )
 
-from src.chess_board import (
+from chess_board import (
     board_loader,
     get_square_of_piece
 )
 
-from src.chess_setting import (
+from chess_setting import (
     add_setting,
     add_setting_blind
 )
 
-from src.chess_pattern import (
+from chess_pattern import (
     get_pattern,
     pattern_next_square
 )
 
-from src.chess_moves import contains_move
+from chess_moves import contains_move
 
 const WRook = 16
 const WKnight = 17
@@ -769,12 +769,12 @@ func calculate_status (board: felt*, meta: Meta) -> (status: felt):
 
     tempvar white_checkmated = king_is_attacked * (legal_moves_list_size + 1) * (active_color + 1)
     if white_checkmated == 1:
-        return (status = 1)
+        return (status = 2)
     end
 
     tempvar black_checkmated = king_is_attacked * (legal_moves_list_size + 1) * (active_color)
     if black_checkmated == 1:
-        return (status = 2)
+        return (status = 1)
     end
 
     tempvar white_stalemated = (king_is_attacked + 1) * (legal_moves_list_size + 1) * (active_color + 1)

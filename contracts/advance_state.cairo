@@ -1,20 +1,20 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.alloc import alloc
 
-from src.structs import (
+from structs import (
     State,
     Move,
     Square
 )
 
-from src.bit_helper import bits_at
+from bit_helper import bits_at
 
-from src.chess_utils import (
+from chess_utils import (
     encode_move,
     point_to_felt
 )
 
-from src.service import advance_positions
+from service import advance_positions
 
 const WHITE = 0
 const BLACK = 1

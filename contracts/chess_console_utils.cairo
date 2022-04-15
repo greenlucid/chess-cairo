@@ -1,4 +1,4 @@
-from src.structs import (
+from structs import (
     Setting,
     Move,
     Square,
@@ -6,7 +6,7 @@ from src.structs import (
     State
 )
 
-from src.chess_utils import board_index
+from chess_utils import board_index
 
 const WRook = 16
 const WKnight = 17
