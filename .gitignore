@@ -1,5 +1,10 @@
-chess_abi.json
-chess_compiled.json
-test_compiled.json
-testzone/
 notes/test_session1.txt
+
+# nile stuff
+ 
+env
+artifacts
+tests
+127.0.0.1.*
+node.json
+.env

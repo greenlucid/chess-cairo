@@ -15,22 +15,22 @@ from starkware.starknet.common.syscalls import (
     get_contract_address
 )
 
-from src.structs import State
-from src.advance_state import advance_state
+from structs import State
+from advance_state import advance_state
 
-from src.decoder import decode_state
+from decoder import decode_state
 
-from src.encoder import (
+from encoder import (
     encode_state,
     encode_board_state
 )
 
-from src.service import (
+from service import (
     check_legality,
     calculate_result
 )
 
-from src.chess_utils import parse_move
+from chess_utils import parse_move
 
 const WHITE = 0
 const BLACK = 1
