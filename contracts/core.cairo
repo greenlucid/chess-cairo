@@ -769,12 +769,12 @@ func calculate_status (board: felt*, meta: Meta) -> (status: felt):
 
     tempvar white_checkmated = king_is_attacked * (legal_moves_list_size + 1) * (active_color + 1)
     if white_checkmated == 1:
-        return (status = 1)
+        return (status = 2)
     end
 
     tempvar black_checkmated = king_is_attacked * (legal_moves_list_size + 1) * (active_color)
     if black_checkmated == 1:
-        return (status = 2)
+        return (status = 1)
     end
 
     tempvar white_stalemated = (king_is_attacked + 1) * (legal_moves_list_size + 1) * (active_color + 1)
