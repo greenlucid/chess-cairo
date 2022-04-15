@@ -12,7 +12,7 @@ from starkware.cairo.common.math import (
 )
 
 from starkware.starknet.common.syscalls import (
-    get_contract_address
+    get_caller_address
 )
 
 from structs import State
@@ -99,7 +99,7 @@ end
 func assert_sender_is{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
         range_check_ptr}(color : felt) -> ():
-    let (sender) = get_contract_address()
+    let (sender) = get_caller_address()
     let (player) = players.read(color)
     assert player = sender
     return ()
