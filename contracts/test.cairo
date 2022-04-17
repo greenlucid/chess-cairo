@@ -1,21 +1,21 @@
 %builtins output range_check bitwise 
 
-from decoder import (
+from contracts.decoder import (
     decode_state
 )
-from encoder import encode_state
-from structs import State
-from service import (
+from contracts.encoder import encode_state
+from contracts.structs import State
+from contracts.service import (
     check_legality,
     calculate_result
 )
-from advance_state import (
+from contracts.advance_state import (
     advance_state
 )
-from chess_utils import (
+from contracts.chess_utils import (
     parse_move
 )
-from chess_console_utils import show_state
+from contracts.chess_console_utils import show_state
 
 from starkware.cairo.common.serialize import serialize_word
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin

@@ -1,6 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 
-from structs import Setting
+from contracts.structs import Setting
 
 const WRook = 16
 const WKnight = 17

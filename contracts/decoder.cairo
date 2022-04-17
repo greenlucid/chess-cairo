@@ -1,11 +1,11 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.alloc import alloc
 
-from structs import (
+from contracts.structs import (
     State
 )
 
-from bit_helper import (
+from contracts.bit_helper import (
     bits_at,
     bit_at
 )

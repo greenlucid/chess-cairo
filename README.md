@@ -22,12 +22,11 @@ In chess.cairo, the contract keeps `initial_state`, an encoded fen state, and `m
 
 # Installation
 
-This project uses [nile](https://github.com/OpenZeppelin/nile). Refer to it if you're lost.
+This project uses [nile](https://github.com/OpenZeppelin/nile). Refer to it if you're lost. You'll also need pyenv, to use python3.7.
 
 - `python3.7 -m venv env`
 - `source env/bin/activate`
 - `pip install git+https://github.com/OpenZeppelin/nile.git#egg=cairo-nile`
-- `nile init`
 - `echo "WHITE=1234" > .env`
 
 ## Running it

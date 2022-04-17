@@ -8,7 +8,7 @@
 
 from starkware.cairo.common.alloc import alloc
 
-from structs import (
+from contracts.structs import (
     Square,
     Pattern,
     Move,
@@ -17,7 +17,7 @@ from structs import (
     Setting
 )
 
-from chess_utils import (
+from contracts.chess_utils import (
     in_range,
     compare_square_content,
     square_content,
@@ -28,29 +28,29 @@ from chess_utils import (
     check_final_square
 )
 
-from chess_moves import (
+from contracts.chess_moves import (
     add_move,
     add_move_blind,
     serialize_move,
     add_moves_lists
 )
 
-from chess_board import (
+from contracts.chess_board import (
     board_loader,
     get_square_of_piece
 )
 
-from chess_setting import (
+from contracts.chess_setting import (
     add_setting,
     add_setting_blind
 )
 
-from chess_pattern import (
+from contracts.chess_pattern import (
     get_pattern,
     pattern_next_square
 )
 
-from chess_moves import contains_move
+from contracts.chess_moves import contains_move
 
 const WRook = 16
 const WKnight = 17
