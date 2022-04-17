@@ -54,7 +54,7 @@ const BLACK_WIN = 2
 const DRAW = 3
 
 @storage_var
-func finality() -> (status : felt):
+func result() -> (status : felt):
 end
 
 # The turn (ply) in which a side offers a draw
@@ -108,8 +108,8 @@ end
 func assert_pending{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
         range_check_ptr}() -> ():
-    let (current_finality) = finality.read()
-    assert current_finality = PENDING
+    let (current_result) = result.read()
+    assert current_result = PENDING
     return ()
 end
 
@@ -184,11 +184,11 @@ func move_at{
 end
  
 @view
-func get_finality{
+func get_result{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
-        range_check_ptr}() -> (finality : felt):
-    let (status) = finality.read()
-    return (finality=status)
+        range_check_ptr}() -> (result : felt):
+    let (status) = result.read()
+    return (result=status)
 end
 
 # EXTERNALS
@@ -218,25 +218,25 @@ func write_result{
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr
         }() -> ():
     alloc_locals
-    let (current_finality) = finality.read()
-    assert current_finality = 0
+    let (stored_result) = result.read()
+    assert stored_result = 0
 
     let (local state) = actual_state()
-    let (local result) = calculate_result(state)
-    finality.write(result)
+    let (local current_result) = calculate_result(state)
+    result.write(current_result)
     return ()
 end
 
-# For when finality is known due to external factors. e.g. timeout
+# For when result is known due to external factors. e.g. timeout
 @external
-func force_finality{
+func rule_result{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
-        range_check_ptr}(forced_finality : felt) -> ():
+        range_check_ptr}(force_result : felt) -> ():
     alloc_locals
     assert_pending()
     assert_sender_is(GOVERNOR)
-    assert_nn_le(forced_finality, 3)
-    finality.write(forced_finality)
+    assert_nn_le(force_result, 3)
+    result.write(force_result)
     return ()
 end
 
@@ -248,11 +248,11 @@ func surrender{
     regular_player_asserts(as_player)
     if as_player == 0: 
         # white surrendered
-        finality.write(BLACK_WIN)
+        result.write(BLACK_WIN)
         return ()
     end
     # black surrendered
-    finality.write(WHITE_WIN)
+    result.write(WHITE_WIN)
     return ()
 end
 
@@ -270,7 +270,7 @@ func offer_draw{
     let (other_offer) = draw_offer.read(other)
     if move_count == other_offer:
         # both sides just agreed to a draw.
-        finality.write(DRAW)
+        result.write(DRAW)
         return ()
     end
     # that means caller is first to propose draw this turn.
@@ -302,7 +302,7 @@ func draw_threefold_repetition{
 
     assert fa = fb
     assert fb = fc
-    finality.write(DRAW)
+    result.write(DRAW)
     return ()
 end
 
@@ -316,7 +316,7 @@ func draw_fifty_moves{
     # assert that state.halfmove_clock is >= 100
     let halfmove_clock = state.halfmove_clock
     assert_le(100, halfmove_clock)
-    finality.write(DRAW)
+    result.write(DRAW)
     return ()
 end
 
