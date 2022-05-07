@@ -2,9 +2,10 @@ Format is the following:
 
 ## State
 
+A felt stating the number of FEN encodings following it.
 An array of FEN encodings. The first one corresponds to the initial state, and all the others are the resultant state after a move.
 
-Why store the FENs instead of the moves? It takes less work to do a function later.
+Two felts signaling the status of draw offer of each color for the current round.
 
 ## Action
 

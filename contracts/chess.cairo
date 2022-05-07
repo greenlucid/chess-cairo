@@ -41,11 +41,7 @@ func players(i : felt) -> (address : felt):
 end
 
 @storage_var
-func initial_state() -> (state : felt):
-end
-
-@storage_var
-func moves(i : felt) -> (move : felt):
+func hash_state() -> (state : felt):
 end
 
 const PENDING = 0
@@ -57,43 +53,13 @@ const DRAW = 3
 func result() -> (status : felt):
 end
 
-# The turn (ply) in which a side offers a draw
-# If a side proposes draw and the other side had this flag set at
-# the current turn, finalize game as a draw.
-# Otherwise, set flag.
-# You cannot draw at turn 0.
-# Side 0 is white, whereas side 1 is black.
-@storage_var
-func draw_offer(color : felt) -> (ply : felt):
-end
-
 # Helper funcs
 
-func state_advancer{
-        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
-        bitwise_ptr : BitwiseBuiltin*, range_check_ptr
-        }(state : State, curr : felt, remain : felt) -> (final_state : State):
-    if remain == 0:
-        return (final_state=state)
-    end
+func actual_state(arr_state_len : felt, arr_state : felt*) -> (state : State):
     alloc_locals
-    let (enc_move) = moves.read(curr)
-    let (move) = parse_move(enc_move)
-    # this is a struct so it may break
-    let (next_state) = advance_state(state, move)
-    let (final_state) = state_advancer(next_state, curr+1, remain-1)
-    return (final_state=final_state)
-end
-
-func actual_state{
-        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
-        bitwise_ptr : BitwiseBuiltin*, range_check_ptr}() -> (state : State):
-    alloc_locals
-    let (encoded_state) = initial_state.read()
-    let (first_state) = decode_state(encoded_state)
-    let (n) = n_moves()
-    let (state) = state_advancer(first_state, curr=0, remain=n)
-    return (state=state)
+    let (fen_state) = [arr_state + arr_state_len - 1]
+    let (state_struct) = decode_state(fen_state)
+    return (state=state_struct)
 end
 
 func assert_sender_is{
@@ -132,20 +98,6 @@ func regular_player_asserts{
     return ()
 end
 
-# So, you don't actually need to store how many moves there are.
-# The move 0x0 is illegal. Just iterate until you find a zero
-func move_counter{
-        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
-        range_check_ptr}(i : felt) -> (count : felt):
-    alloc_locals
-    let (move) = moves.read(i)
-    if move == 0:
-        return (count=i)
-    end
-    let (count) = move_counter(i+1)
-    return (count=count)
-end
-
 # VIEW FUNCS
 
 @view
@@ -157,6 +109,14 @@ func get_player{
 end
 
 @view
+func get_hash_state{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+        range_check_ptr}() -> (hash_state : felt):
+    let (stored_hash_state) = hash_state.read()
+    return (hash_state=stored_hash_state)
+end
+
+@view
 func current_state{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr}() -> (state : felt):
@@ -164,23 +124,6 @@ func current_state{
     let (state) = actual_state()
     let (encoded_state) = encode_state(state)
     return (state=encoded_state)
-end
-
-@view
-func n_moves{
-        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
-        range_check_ptr}() -> (count : felt):
-    let (count) = move_counter(i=0)
-    return (count=count)
-end
-
-# Use this (with n calls) to see the game history in frontend
-@view
-func move_at{
-        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
-        range_check_ptr}(i : felt) -> (move : felt):
-    let (move) = moves.read(i)
-    return (move)
 end
  
 @view
@@ -192,6 +135,15 @@ func get_result{
 end
 
 # EXTERNALS
+
+@external
+func act{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+        bitwise_ptr : BitwiseBuiltin*, range_check_ptr
+        }(state_len : felt, state : felt*,
+        action_len : felt, action : felt*) -> ():
+    
+end
 
 @external
 func make_move{
