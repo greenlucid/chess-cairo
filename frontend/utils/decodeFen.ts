@@ -108,9 +108,16 @@ const hextobin = (hex: string) => {
   const bin = hex
     .substring(2)
     .split("")
-    .map((char) => Number.parseInt(char, 16).toString(2))
+    .map((char) => {
+      const binbase = Number.parseInt(char, 16).toString(2)
+      const paddingZeroes = "0".repeat(4 - binbase.length)
+      return `${paddingZeroes}${binbase}`
+    })
     .join("")
-  return bin
+  if (bin.length >= 251) return bin.substring(bin.length - 251)
+  const paddingZeroes = "0".repeat(251 - bin.length)
+
+  return `${paddingZeroes}${bin}`
 }
 
 const rawEncodingToBin = (rawEncoding: string) => {

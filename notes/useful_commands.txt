@@ -8,10 +8,10 @@ make a wallet:
 export STARKNET_NETWORK=alpha-goerli && export STARKNET_WALLET=starkware.starknet.wallets.open_zeppelin.OpenZeppelinAccount
 starknet deploy_account
 
-starknet deploy --contract chess_compiled.json \
-  --inputs 0x037e68ac9bc0e3f7dbd31e16287da8eddc72c2ae3123a55ea86acf7c2fdb39bd \
-  0x037e68ac9bc0e3f7dbd31e16287da8eddc72c2ae3123a55ea86acf7c2fdb39bd \
-  0x037e68ac9bc0e3f7dbd31e16287da8eddc72c2ae3123a55ea86acf7c2fdb39bd \
+starknet deploy --contract chess.json \
+  --inputs 0x017734b899fcdf397054bdc364b3b0bda0718c12572ba46c1446b7ff9464269f \
+  0x017734b899fcdf397054bdc364b3b0bda0718c12572ba46c1446b7ff9464269f \
+  0x017734b899fcdf397054bdc364b3b0bda0718c12572ba46c1446b7ff9464269f \
   0x633adf359c77bdef7bde8000000056b5ad6b5ac2329d25183e0000040000000
 
 starknet tx_status --hash 0x421f6333201e32269100e876fec0d7758ff167a953e60c98d5e82c99d3fc505 --contract chess_compiled.json
@@ -40,9 +40,9 @@ nile setup WHITE
 nile compile contracts/chess.cairo
 
 nile deploy chess \
-  0x039b23b5fe156ca249382502ed361adf777c1f6b5559f01ff5d95af31fb82c8a \
-  0x039b23b5fe156ca249382502ed361adf777c1f6b5559f01ff5d95af31fb82c8a \
-  0x039b23b5fe156ca249382502ed361adf777c1f6b5559f01ff5d95af31fb82c8a \
+  0x017734b899fcdf397054bdc364b3b0bda0718c12572ba46c1446b7ff9464269f \
+  0x017734b899fcdf397054bdc364b3b0bda0718c12572ba46c1446b7ff9464269f \
+  0x017734b899fcdf397054bdc364b3b0bda0718c12572ba46c1446b7ff9464269f \
   0x633adf359c77bdef7bde8000000056b5ad6b5ac2329d25183e0000040000000
 
 nile call 0x0241b1c6d22297d0dbf453f98bcf76a5b4bf45d5d9f49c59a6da960a23c3747c current_state

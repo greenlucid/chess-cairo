@@ -1,6 +1,9 @@
 const encodeMove = (a: number, b: number, c: number, d: number, e = 0) =>
   a * 2048 + b * 256 + c * 32 + d * 4 + e
 
+export const encodeMove2 = (start: number, end: number, extra = 0) =>
+  start * 256 + end * 4 + extra
+
 /**
 // a short game of chess:
 console.log(encodeMove(6,4,4,4)) // e4
