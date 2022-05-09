@@ -7,6 +7,7 @@ import decodeFen from "../utils/decodeFen"
 import { Chessboard, Pieces, Square } from "react-chessboard"
 import { encodeMove2 } from "../utils/encodeMove"
 import { connect } from "@argent/get-starknet"
+import shortenAddress from "../utils/shortenAddress"
 
 enum PieceType {
   Rook,
@@ -125,9 +126,9 @@ type State = {
 }
 
 type ChessData = {
-  //players: Players
+  players: Players
   state: State
-  //finality: number
+  finality: number
 }
 
 type Pos = [number | undefined, number | undefined]
@@ -188,7 +189,28 @@ const useChessData = (address: string) => {
       const state = parseEncodedFen(res.result[0])
       console.log(state)
       if (state) {
-        setChessData({ state })
+        const getPlayer = async (i: number): Promise<string> => {
+          const res = await provider.callContract({
+            contractAddress: address,
+            entrypoint: "get_player",
+            calldata: [i.toString()],
+          })
+          return res.result[0]
+        }
+        const [white, black, governor] = await Promise.all([
+          getPlayer(0),
+          getPlayer(1),
+          getPlayer(2),
+        ])
+        const players = { white, black, governor }
+        const finalityRes = await provider.callContract({
+          contractAddress: address,
+          entrypoint: "get_finality",
+          calldata: [],
+        })
+        const finality = Number(finalityRes.result[0])
+        console.log(players)
+        setChessData({ state, players, finality })
       } else {
         setChessData(null)
       }
@@ -220,7 +242,7 @@ const ChessGame: React.FC<{ chessData: ChessData; gameAddress: string }> = ({
       )
     }
 
-    await starknet.enable({showModal: true})
+    await starknet.enable({ showModal: true })
     const result = await starknet.account.execute({
       contractAddress: gameAddress,
       entrypoint: "make_move",
@@ -228,11 +250,54 @@ const ChessGame: React.FC<{ chessData: ChessData; gameAddress: string }> = ({
     })
     console.log("sent ;)", result)
   }
+  const finalities = ["Pending", "White win", "Black win", "Draw"]
 
   return (
     <div>
-      <h3>{chessData.state.activeColor === Color.White ? "White" : "Black"} to move</h3>
+      <p>
+        <a
+          target="_blank"
+          href={`https://goerli.voyager.online/contract/${gameAddress}`}
+        >
+          {shortenAddress(gameAddress)}
+        </a>
+      </p>{" "}
+      <h3>
+        {chessData.state.activeColor === Color.White ? "White" : "Black"} to
+        move
+      </h3>
+      <h3>Players:</h3>
+      <ul>
+        <li>
+          White{" "}
+          <a
+            target="_blank"
+            href={`https://goerli.voyager.online/contract/${chessData.players.white}`}
+          >
+            {shortenAddress(chessData.players.white)}
+          </a>
+        </li>
+        <li>
+          Black{" "}
+          <a
+            target="_blank"
+            href={`https://goerli.voyager.online/contract/${chessData.players.black}`}
+          >
+            {shortenAddress(chessData.players.black)}
+          </a>
+        </li>
+        <li>
+          Governor{" "}
+          <a
+            target="_blank"
+            href={`https://goerli.voyager.online/contract/${chessData.players.governor}`}
+          >
+            {shortenAddress(chessData.players.governor)}
+          </a>
+        </li>
+      </ul>
       <h3>Move #{chessData.state.fullmoveClock}</h3>
+      <h3>Result: {finalities[chessData.finality]}</h3>
       <Chessboard
         position={chessData.state.fen}
         onPieceDrop={(source, target, piece) => {
@@ -267,7 +332,6 @@ const GamePage: NextPage = () => {
         <link rel="icon" href="/king.svg" />
       </Head>
       <h1>Chess game</h1>
-      <p>{gameAddress}</p>{" "}
       <ChessContainer chessData={chessData} gameAddress={gameAddress} />
     </div>
   )

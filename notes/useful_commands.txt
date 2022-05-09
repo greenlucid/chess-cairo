@@ -8,7 +8,7 @@ make a wallet:
 export STARKNET_NETWORK=alpha-goerli && export STARKNET_WALLET=starkware.starknet.wallets.open_zeppelin.OpenZeppelinAccount
 starknet deploy_account
 
-starknet deploy --contract chess.json \
+starknet deploy --contract artifacts/chess.json \
   --inputs 0x017734b899fcdf397054bdc364b3b0bda0718c12572ba46c1446b7ff9464269f \
   0x017734b899fcdf397054bdc364b3b0bda0718c12572ba46c1446b7ff9464269f \
   0x017734b899fcdf397054bdc364b3b0bda0718c12572ba46c1446b7ff9464269f \
