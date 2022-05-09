@@ -598,6 +598,12 @@ func is_legal_move (board: felt*, meta: Meta, move: Move) -> (is_legal: felt):
     let new_meta : Meta = Meta (new_active_color, meta.castling_K, meta.castling_Q, meta.castling_k, meta.castling_q, meta.passant)
     let (attack_list, attack_list_size) = calculate_all_attacks (new_board, 0, 0, new_meta)
 
+    let (moves_list, moves_list_size) = calculate_moves_wrapper(board, meta, move.origin)
+    let (is_in_moves_list) = contains_move (moves_list, moves_list_size, move)
+    if is_in_moves_list == 0:
+        return (is_legal = 0)
+    end
+
     # Check if king is attacked
     tempvar colored_king = WKing + meta.active_color * 8 
     let (kings_square) = get_square_of_piece (new_board, 63, colored_king)
