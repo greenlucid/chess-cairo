@@ -214,12 +214,14 @@ func get_pawn_pattern () -> (pawn_pattern: Pattern*, pawn_pattern_size: felt):
     let (local pawn_pattern : Pattern*) = alloc()
 
     let pawn_pattern_1 : Pattern = Pattern (col_var = 1, row_var =-1, type = 3)
-    let pawn_pattern_2 : Pattern = Pattern (col_var = 0, row_var =-1, type = 2)
+    let pawn_pattern_2 : Pattern = Pattern (col_var = 0, row_var =-1, type = 0)
     let pawn_pattern_3 : Pattern = Pattern (col_var = -1, row_var =-1, type = 3)
+    let pawn_pattern_4 : Pattern = Pattern (col_var = 0, row_var =-2, type = 2)
     add_pattern_blind(pawn_pattern, 0, pawn_pattern_1)
     add_pattern_blind(pawn_pattern, 1, pawn_pattern_2)
     add_pattern_blind(pawn_pattern, 2, pawn_pattern_3)
-    tempvar pawn_pattern_size = 3
+    add_pattern_blind(pawn_pattern, 3, pawn_pattern_4)
+    tempvar pawn_pattern_size = 4
 
     return(pawn_pattern = pawn_pattern, pawn_pattern_size = pawn_pattern_size)
 end
