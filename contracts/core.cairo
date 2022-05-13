@@ -260,12 +260,30 @@ func get_guidance_vector(
                 promotion_flag = promotion_flag, new_reference_square = initial_square)
             return(guidance_vector = guidance_vector)
         end
-        # Only move : pattern.type = 2, final_square = 4 (empty) - Only for pawns
-        tempvar only_move = (pattern_type - 1) * (final_square_content - 3)
-        if only_move == 1:
+        # Only move 1 : pattern.type = 0, final_square = 4 (empty) - Only for pawns
+        tempvar only_move_1 = (pattern_type + 1) * (final_square_content - 3)
+        if only_move_1 == 1:
+            %{
+                print(' only_move_1:', ids.only_move_1)
+            %}
             let guidance_vector : Recursive_Vector = Recursive_Vector (stop_flag = 1, save_flag = 1, castle_k_flag = 0, castle_q_flag = 0,
                 promotion_flag = promotion_flag, new_reference_square = initial_square)
             return(guidance_vector = guidance_vector)
+        end
+        # Only move 2 : pattern.type = 2, middle_square = 4, final_square = 4 (empty) - Only for pawns
+        tempvar only_move_2 = (pattern_type - 1) * (final_square_content - 3)
+        if only_move_2 == 1:
+            tempvar middle_square_row = (initial_square.row + final_square.row)/2
+            let (middle_square_index) = board_index(Square(middle_square_row, initial_square.col))
+            let only_2_move_middle_sq = [board + middle_square_index]
+            if only_2_move_middle_sq == 0:
+                %{
+                    print(' only_move_2:', ids.only_move_2)
+                %}
+                let guidance_vector : Recursive_Vector = Recursive_Vector (stop_flag = 1, save_flag = 1, castle_k_flag = 0, castle_q_flag = 0,
+                    promotion_flag = promotion_flag, new_reference_square = initial_square)
+                return(guidance_vector = guidance_vector)
+            end
         end
         # Checking first if the pawn is on the fifth (relative) row, so en passant is possible
         tempvar initial_square_relative_row = initial_square.row - active_color 
