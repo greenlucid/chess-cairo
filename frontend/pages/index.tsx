@@ -6,8 +6,8 @@ import { CompiledContract, ContractFactory, Provider, Abi } from "starknet"
 import { useState } from "react"
 import fullEncodeFen from "../utils/encodeFen"
 
-import chessCompiled from "../../artifacts/chess.json"
-import chessAbi from "../../artifacts/abis/chess.json"
+//import chessCompiled from "../../artifacts/chess.json"
+//import chessAbi from "../../artifacts/abis/chess.json"
 import Link from "next/link"
 
 const initialFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
@@ -18,7 +18,7 @@ type CreateGameParams = {
   governor: string
   fen: string
 }
-
+/*
 const CreateGameForm: React.FC<any> = ({ deployGame, loading }: any) => {
   if (loading) return null
   return (
@@ -106,17 +106,22 @@ const CreateGame: React.FC = () => {
     </div>
   )
 }
+*/
 
 const AlternativeExplainer = () => {
   return (
     <div className={styles.lightEnclosed}>
       <p>
-        Note the function below{" "}
+        Below there was supposed to be a function to construct the chess
+        contract.{" "}
         <a href="https://github.com/0xs34n/starknet.js/issues/188">
-          does not work
-        </a>{" "}
-        so you should use an alternative approach, like deploying the contract
-        manually.
+          It does not work atm.
+        </a>
+        So, it was removed temporarily because the compiled contract is large.
+      </p>
+      <p>
+        The alternative approach is either deploying the contract manually, or
+        asking me to deploy it. If you want to do it:
       </p>
       <ul>
         <li>
@@ -172,7 +177,9 @@ const Home: NextPage = () => {
             Play chess on-chain.
           </p>
           <AlternativeExplainer />
-          <CreateGame />
+          {
+            //<CreateGame />
+          }
         </div>
       </body>
 
