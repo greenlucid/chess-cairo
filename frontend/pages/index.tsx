@@ -8,7 +8,6 @@ import fullEncodeFen from "../utils/encodeFen"
 
 import chessCompiled from "../../artifacts/chess.json"
 import chessAbi from "../../artifacts/abis/chess.json"
-import Image from "next/image"
 
 const initialFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
@@ -138,9 +137,15 @@ const AlternativeExplainer = () => {
             <li>
               <p>encoded initial fen</p>
               <p>
-                (regular:
+                (regular starting position:
                 0x633adf359c77bdef7bde8000000056b5ad6b5ac2329d25183e0000040000000)
               </p>
+            </li>
+            <li>
+              goto {"/{chess-contract-address}"} e.g.{" "}
+              <a href="/0x06f67ad1ff127415958e916ebf66f7ea5d775307a123ea2d1dfb8c7894827900">
+                this link. It will take some time
+              </a>
             </li>
           </ul>
         </li>
