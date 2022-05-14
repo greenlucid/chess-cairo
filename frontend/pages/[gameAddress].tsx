@@ -129,6 +129,7 @@ type ChessData = {
   players: Players
   state: State
   finality: number
+  drawOffers: number[]
 }
 
 type Pos = [number | undefined, number | undefined]
@@ -215,8 +216,18 @@ const useChessData = (address: string) => {
           calldata: [],
         })
         const finality = Number(finalityRes.result[0])
+
+        const drawOffersRes = await provider.callContract({
+          contractAddress: address,
+          entrypoint: "get_draw_offers",
+          calldata: [],
+        })
+        const drawOffers = [
+          Number(drawOffersRes.result[0]),
+          Number(drawOffersRes.result[1]),
+        ]
         console.log(players)
-        setChessData({ state, players, finality })
+        setChessData({ state, players, finality, drawOffers })
       } else {
         setChessData(null)
       }
@@ -291,6 +302,40 @@ const ChessGame: React.FC<{ chessData: ChessData; gameAddress: string }> = ({
     console.log("sent write result", result)
   }
 
+  const handleSurrender = async () => {
+    const starknet = await connect()
+    if (!starknet) {
+      throw Error(
+        "User rejected wallet selection or silent connect found nothing"
+      )
+    }
+    await starknet.enable({ showModal: true })
+    const result = await starknet.account.execute({
+      contractAddress: gameAddress,
+      entrypoint: "surrender",
+      calldata: [chessData.state.activeColor], // todo fix this
+      // it should be the as_player, not the active color necessarily
+    })
+    console.log("sent surrender", result)
+  }
+
+  const offerDraw = async () => {
+    const starknet = await connect()
+    if (!starknet) {
+      throw Error(
+        "User rejected wallet selection or silent connect found nothing"
+      )
+    }
+    await starknet.enable({ showModal: true })
+    const result = await starknet.account.execute({
+      contractAddress: gameAddress,
+      entrypoint: "offer_draw",
+      calldata: [chessData.state.activeColor], // todo fix this
+      // it should be the as_player, not the active color necessarily
+    })
+    console.log("sent draw offer", result)
+  }
+
   const finalities = ["Pending", "White win", "Black win", "Draw"]
 
   return (
@@ -339,7 +384,13 @@ const ChessGame: React.FC<{ chessData: ChessData; gameAddress: string }> = ({
       </ul>
       <h3>Move #{chessData.state.fullmoveClock}</h3>
       <h3>Result: {finalities[chessData.finality]}</h3>
+      <p>
+        White draw request: {chessData.drawOffers[0]}. Black draw request:{" "}
+        {chessData.drawOffers[1]}
+      </p>
       <button onClick={handleWriteResult}>Write Result</button>
+      <button onClick={handleSurrender}>Surrender</button>
+      <button onClick={offerDraw}>Offer Draw</button>
       <p>
         Use this button to set the result, when the current position is final
       </p>
