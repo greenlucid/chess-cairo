@@ -1,12 +1,13 @@
 import { NextPage } from "next"
+import styles from "../styles/Home.module.css"
 import Head from "next/head"
 import { useRouter } from "next/router"
 import { useEffect, useState } from "react"
-import { Provider } from "starknet"
+import { Provider, stark } from "starknet"
 import decodeFen from "../utils/decodeFen"
 import { Chessboard, Pieces, Square } from "react-chessboard"
 import { encodeMove2 } from "../utils/encodeMove"
-import { connect } from "@argent/get-starknet"
+import { connect, IStarknetWindowObject } from "@argent/get-starknet"
 import shortenAddress from "../utils/shortenAddress"
 
 enum PieceType {
@@ -243,6 +244,30 @@ const useChessData = (address: string) => {
   return chessData
 }
 
+const getAsPlayer = (starknet: IStarknetWindowObject, chessData: ChessData) => {
+  const address = starknet.account.address
+  if (chessData.players.white === address && chessData.players.black) {
+    const asPlayer = prompt("You're both players, as who? (0: white, 1: black)")
+    const promptNumber = Number(asPlayer)
+    if (isNaN(promptNumber)) {
+      alert("Error, you should put a number")
+      return null
+    } else if (promptNumber < 0 || promptNumber > 1) {
+      alert("Error, number must be [0, 1]")
+      return null
+    } else {
+      return promptNumber
+    }
+  } else if (chessData.players.white === address) {
+    return 0
+  } else if (chessData.players.black === address) {
+    return 0
+  } else {
+    alert("You're not a player, can't do this")
+    return null
+  }
+}
+
 const ChessGame: React.FC<{ chessData: ChessData; gameAddress: string }> = ({
   chessData,
   gameAddress,
@@ -310,11 +335,12 @@ const ChessGame: React.FC<{ chessData: ChessData; gameAddress: string }> = ({
       )
     }
     await starknet.enable({ showModal: true })
+    const asPlayer = getAsPlayer(starknet, chessData)
+    if (asPlayer === null) return
     const result = await starknet.account.execute({
       contractAddress: gameAddress,
       entrypoint: "surrender",
-      calldata: [chessData.state.activeColor], // todo fix this
-      // it should be the as_player, not the active color necessarily
+      calldata: [asPlayer],
     })
     console.log("sent surrender", result)
   }
@@ -327,11 +353,12 @@ const ChessGame: React.FC<{ chessData: ChessData; gameAddress: string }> = ({
       )
     }
     await starknet.enable({ showModal: true })
+    const asPlayer = getAsPlayer(starknet, chessData)
+    if (asPlayer === null) return
     const result = await starknet.account.execute({
       contractAddress: gameAddress,
       entrypoint: "offer_draw",
-      calldata: [chessData.state.activeColor], // todo fix this
-      // it should be the as_player, not the active color necessarily
+      calldata: [asPlayer],
     })
     console.log("sent draw offer", result)
   }
@@ -339,61 +366,7 @@ const ChessGame: React.FC<{ chessData: ChessData; gameAddress: string }> = ({
   const finalities = ["Pending", "White win", "Black win", "Draw"]
 
   return (
-    <div>
-      <p>
-        <a
-          target="_blank"
-          href={`https://goerli.voyager.online/contract/${gameAddress}`}
-        >
-          {shortenAddress(gameAddress)}
-        </a>
-      </p>{" "}
-      <h3>
-        {chessData.state.activeColor === Color.White ? "White" : "Black"} to
-        move
-      </h3>
-      <h3>Players:</h3>
-      <ul>
-        <li>
-          White{" "}
-          <a
-            target="_blank"
-            href={`https://goerli.voyager.online/contract/${chessData.players.white}`}
-          >
-            {shortenAddress(chessData.players.white)}
-          </a>
-        </li>
-        <li>
-          Black{" "}
-          <a
-            target="_blank"
-            href={`https://goerli.voyager.online/contract/${chessData.players.black}`}
-          >
-            {shortenAddress(chessData.players.black)}
-          </a>
-        </li>
-        <li>
-          Governor{" "}
-          <a
-            target="_blank"
-            href={`https://goerli.voyager.online/contract/${chessData.players.governor}`}
-          >
-            {shortenAddress(chessData.players.governor)}
-          </a>
-        </li>
-      </ul>
-      <h3>Move #{chessData.state.fullmoveClock}</h3>
-      <h3>Result: {finalities[chessData.finality]}</h3>
-      <p>
-        White draw request: {chessData.drawOffers[0]}. Black draw request:{" "}
-        {chessData.drawOffers[1]}
-      </p>
-      <button onClick={handleWriteResult}>Write Result</button>
-      <button onClick={handleSurrender}>Surrender</button>
-      <button onClick={offerDraw}>Offer Draw</button>
-      <p>
-        Use this button to set the result, when the current position is final
-      </p>
+    <div className={styles.gameBox}>
       <Chessboard
         position={chessData.state.fen}
         onPieceDrop={(source, target, piece) => {
@@ -401,6 +374,61 @@ const ChessGame: React.FC<{ chessData: ChessData; gameAddress: string }> = ({
           return false
         }}
       />
+      <div className={styles.lightEnclosed}>
+        <h1>Chess game</h1>
+        <p>
+          <a
+            target="_blank"
+            href={`https://goerli.voyager.online/contract/${gameAddress}`}
+          >
+            {shortenAddress(gameAddress)}
+          </a>
+        </p>{" "}
+        <h3>
+          {chessData.state.activeColor === Color.White ? "White" : "Black"} to
+          move
+        </h3>
+        <h3>Players:</h3>
+        <ul>
+          <li>
+            White{" "}
+            <a
+              target="_blank"
+              href={`https://goerli.voyager.online/contract/${chessData.players.white}`}
+            >
+              {shortenAddress(chessData.players.white)}
+            </a>
+          </li>
+          <li>
+            Black{" "}
+            <a
+              target="_blank"
+              href={`https://goerli.voyager.online/contract/${chessData.players.black}`}
+            >
+              {shortenAddress(chessData.players.black)}
+            </a>
+          </li>
+          <li>
+            Governor{" "}
+            <a
+              target="_blank"
+              href={`https://goerli.voyager.online/contract/${chessData.players.governor}`}
+            >
+              {shortenAddress(chessData.players.governor)}
+            </a>
+          </li>
+        </ul>
+        <h3>Move #{chessData.state.fullmoveClock}</h3>
+        <h3>Result: {finalities[chessData.finality]}</h3>
+        <p>
+          White draw request: {chessData.drawOffers[0]}. Black draw request:{" "}
+          {chessData.drawOffers[1]}
+        </p>
+        <button onClick={handleWriteResult}>Write Result</button>
+        <button onClick={handleSurrender}>Surrender</button>
+        <button onClick={offerDraw}>Offer Draw</button>
+        <p>Use Write Result when the position is final.</p>
+      </div>
     </div>
   )
 }
@@ -427,7 +455,6 @@ const GamePage: NextPage = () => {
         <meta name="description" content="Decentralized chess" />
         <link rel="icon" href="/king.svg" />
       </Head>
-      <h1>Chess game</h1>
       <ChessContainer chessData={chessData} gameAddress={gameAddress} />
     </div>
   )

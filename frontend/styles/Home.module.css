@@ -123,3 +123,9 @@
   border-style: solid;
   padding: 5px;
 }
+
+.gameBox {
+  display: flex;
+  flex-direction: row;
+}
+
