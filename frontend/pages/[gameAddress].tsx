@@ -181,10 +181,16 @@ const useChessData = (address: string) => {
   )
   const getChessData = async () => {
     const provider = new Provider({ network: "goerli-alpha" })
-    const res = await provider.callContract({
-      contractAddress: address,
-      entrypoint: "current_state",
-    })
+    let res = null
+    try {
+      res = await provider.callContract({
+        contractAddress: address,
+        entrypoint: "current_state",
+      })
+    } catch (e) {
+      setChessData(null)
+    }
+
     if (res) {
       const state = parseEncodedFen(res.result[0])
       console.log(state)
@@ -218,7 +224,7 @@ const useChessData = (address: string) => {
   }
 
   useEffect(() => {
-    if (address) {
+    if (address && chessData === undefined) {
       getChessData()
     }
   }, [address])
@@ -250,6 +256,23 @@ const ChessGame: React.FC<{ chessData: ChessData; gameAddress: string }> = ({
     })
     console.log("sent ;)", result)
   }
+  
+  const handleWriteResult = async () => {
+    const starknet = await connect()
+    if (!starknet) {
+      throw Error(
+        "User rejected wallet selection or silent connect found nothing"
+      )
+    }
+    await starknet.enable({ showModal: true })
+    const result = await starknet.account.execute({
+      contractAddress: gameAddress,
+      entrypoint: "write_result",
+      calldata: [],
+    })
+    console.log("sent write result", result)
+  }
+
   const finalities = ["Pending", "White win", "Black win", "Draw"]
 
   return (
@@ -298,6 +321,8 @@ const ChessGame: React.FC<{ chessData: ChessData; gameAddress: string }> = ({
       </ul>
       <h3>Move #{chessData.state.fullmoveClock}</h3>
       <h3>Result: {finalities[chessData.finality]}</h3>
+      <button onClick={handleWriteResult}>Write Result</button>
+      <p>Use this button to set the result, when the current position is final</p>
       <Chessboard
         position={chessData.state.fen}
         onPieceDrop={(source, target, piece) => {
