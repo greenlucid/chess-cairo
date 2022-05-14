@@ -377,7 +377,6 @@ const ChessGame: React.FC<{ chessData: ChessData; gameAddress: string }> = ({
         <h1>Chess game</h1>
         <p>
           <a
-            target="_blank"
             href={`https://goerli.voyager.online/contract/${gameAddress}`}
           >
             {shortenAddress(gameAddress)}
@@ -392,7 +391,6 @@ const ChessGame: React.FC<{ chessData: ChessData; gameAddress: string }> = ({
           <li>
             White{" "}
             <a
-              target="_blank"
               href={`https://goerli.voyager.online/contract/${chessData.players.white}`}
             >
               {shortenAddress(chessData.players.white)}
@@ -401,7 +399,6 @@ const ChessGame: React.FC<{ chessData: ChessData; gameAddress: string }> = ({
           <li>
             Black{" "}
             <a
-              target="_blank"
               href={`https://goerli.voyager.online/contract/${chessData.players.black}`}
             >
               {shortenAddress(chessData.players.black)}
@@ -410,7 +407,6 @@ const ChessGame: React.FC<{ chessData: ChessData; gameAddress: string }> = ({
           <li>
             Governor{" "}
             <a
-              target="_blank"
               href={`https://goerli.voyager.online/contract/${chessData.players.governor}`}
             >
               {shortenAddress(chessData.players.governor)}
@@ -437,7 +433,7 @@ const ChessContainer: React.FC<{
   gameAddress: string | string[] | undefined
 }> = ({ chessData, gameAddress }) => {
   if (chessData === undefined) return <div>loading...</div>
-  if (chessData === null) return <div>chess game doesn't exist</div>
+  if (chessData === null) return <div>chess game does not exist</div>
   if (!gameAddress || typeof gameAddress !== "string") return null
 
   return <ChessGame chessData={chessData} gameAddress={gameAddress} />

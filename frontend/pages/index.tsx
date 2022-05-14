@@ -8,6 +8,7 @@ import fullEncodeFen from "../utils/encodeFen"
 
 import chessCompiled from "../../artifacts/chess.json"
 import chessAbi from "../../artifacts/abis/chess.json"
+import Link from "next/link"
 
 const initialFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
@@ -112,7 +113,7 @@ const AlternativeExplainer = () => {
       <p>
         Note the function below{" "}
         <a href="https://github.com/0xs34n/starknet.js/issues/188">
-          doesn't work
+          does not work
         </a>{" "}
         so you should use an alternative approach, like deploying the contract
         manually.
@@ -143,9 +144,10 @@ const AlternativeExplainer = () => {
             </li>
             <li>
               goto {"/{chess-contract-address}"} e.g.{" "}
-              <a href="/0x06f67ad1ff127415958e916ebf66f7ea5d775307a123ea2d1dfb8c7894827900">
-                this link. It will take some time
-              </a>
+              <Link href="/0x06f67ad1ff127415958e916ebf66f7ea5d775307a123ea2d1dfb8c7894827900">
+                this link
+              </Link>
+              . It will take some time
             </li>
           </ul>
         </li>
@@ -175,27 +177,11 @@ const Home: NextPage = () => {
       </body>
 
       <footer className={`${styles.footer}`}>
-        <a
-          href="https://github.com/greenlucid/chess-cairo"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <a href="https://github.com/greenlucid/chess-cairo">
           GitHub repository
         </a>
-        <a
-          href="https://starkware.co/starknet/"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by StarkNet
-        </a>
-        <a
-          href="https://twitter.com/matchbox_dao"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Join MatchboxDAO!
-        </a>
+        <a href="https://starkware.co/starknet/">Powered by StarkNet</a>
+        <a href="https://twitter.com/matchbox_dao">Join MatchboxDAO!</a>
       </footer>
     </div>
   )
