@@ -199,6 +199,15 @@ func get_finality{
     return (finality=status)
 end
 
+@view
+func get_draw_offers{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+        range_check_ptr}() -> (white_draw_offer : felt, black_draw_offer : felt):
+    let (white_draw_offer) = draw_offer.read(WHITE)
+    let (black_draw_offer) = draw_offer.read(BLACK)
+    return (white_draw_offer=white_draw_offer, black_draw_offer=black_draw_offer)
+end
+
 # EXTERNALS
 
 @external
