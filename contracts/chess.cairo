@@ -149,6 +149,14 @@ end
 # VIEW FUNCS
 
 @view
+func get_initial_state{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+        range_check_ptr}(i : felt) -> (player : felt):
+    let (state) = initial_state.read()
+    return (state=state)
+end
+
+@view
 func get_player{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
         range_check_ptr}(i : felt) -> (player : felt):
