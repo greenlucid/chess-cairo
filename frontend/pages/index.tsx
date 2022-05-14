@@ -80,7 +80,6 @@ const CreateGame: React.FC = () => {
         setGameAddress(contract.address)
       })
       .catch((error) => console.log(error))
-
   }
 
   return (
@@ -108,6 +107,48 @@ const CreateGame: React.FC = () => {
   )
 }
 
+const AlternativeExplainer = () => {
+  return (
+    <div className={styles.lightEnclosed}>
+      <p>
+        Note the function below{" "}
+        <a href="https://github.com/0xs34n/starknet.js/issues/188">
+          doesn't work
+        </a>{" "}
+        so you should use an alternative approach, like deploying the contract
+        manually.
+      </p>
+      <ul>
+        <li>
+          go to the{" "}
+          <a href="https://github.com/greenlucid/chess-cairo">github repo</a>{" "}
+          and clone it
+        </li>
+        <li>
+          go to <b>notes/useful_commands.txt</b> and check instructions to
+          compile chess.cairo. you can use starknet-compile or nile for either
+          compile or deploy.
+        </li>
+        <li>
+          deploy chess.cairo. params are:
+          <ul>
+            <li>white acc address</li>
+            <li>black acc address</li>
+            <li>governor acc address</li>
+            <li>
+              <p>encoded initial fen</p>
+              <p>
+                (regular:
+                0x633adf359c77bdef7bde8000000056b5ad6b5ac2329d25183e0000040000000)
+              </p>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  )
+}
+
 const Home: NextPage = () => {
   return (
     <div className={styles.chesstile}>
@@ -123,7 +164,7 @@ const Home: NextPage = () => {
           <p className={`${styles.description} ${styles.lightEnclosed}`}>
             Play chess on-chain.
           </p>
-
+          <AlternativeExplainer />
           <CreateGame />
         </div>
       </body>
