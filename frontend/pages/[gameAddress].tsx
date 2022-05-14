@@ -275,8 +275,6 @@ const ChessGame: React.FC<{ chessData: ChessData; gameAddress: string }> = ({
   const handleMove = async (source: Square, target: Square, piece: Pieces) => {
     const start = squares.indexOf(source)
     const end = squares.indexOf(target)
-    const encodedMove = encodeMove2(start, end)
-    console.log(encodedMove)
     // promotion
     let extra: number = 0
     // if its pawn crowning move, get it in. otherwise is let as 0
@@ -295,6 +293,7 @@ const ChessGame: React.FC<{ chessData: ChessData; gameAddress: string }> = ({
         extra = promptNumber
       }
     }
+    const encodedMove = encodeMove2(start, end, extra)
     const starknet = await connect()
     if (!starknet) {
       throw Error(
@@ -306,7 +305,7 @@ const ChessGame: React.FC<{ chessData: ChessData; gameAddress: string }> = ({
     const result = await starknet.account.execute({
       contractAddress: gameAddress,
       entrypoint: "make_move",
-      calldata: [encodedMove, chessData.state.activeColor, extra],
+      calldata: [encodedMove, chessData.state.activeColor],
     })
     console.log("sent ;)", result)
   }
