@@ -241,6 +241,24 @@ const ChessGame: React.FC<{ chessData: ChessData; gameAddress: string }> = ({
     const end = squares.indexOf(target)
     const encodedMove = encodeMove2(start, end)
     console.log(encodedMove)
+    // promotion
+    let extra: number = 0
+    // if its pawn crowning move, get it in. otherwise is let as 0
+    if ((end < 8 || end >= 56) && ["wP", "bP"].includes(piece)) {
+      const promptResponse = prompt(
+        "Promotion, type a number: 0 = Rook, 1 == Queen, 2 == Knight, 3 == Bishop"
+      )
+      const promptNumber = Number(promptResponse)
+      if (isNaN(promptNumber)) {
+        alert("Error, you should put a number")
+        return
+      } else if (promptNumber < 0 || promptNumber > 3) {
+        alert("Error, number must be [0, 1, 2, 3]")
+        return
+      } else {
+        extra = promptNumber
+      }
+    }
     const starknet = await connect()
     if (!starknet) {
       throw Error(
@@ -252,11 +270,11 @@ const ChessGame: React.FC<{ chessData: ChessData; gameAddress: string }> = ({
     const result = await starknet.account.execute({
       contractAddress: gameAddress,
       entrypoint: "make_move",
-      calldata: [encodedMove, chessData.state.activeColor],
+      calldata: [encodedMove, chessData.state.activeColor, extra],
     })
     console.log("sent ;)", result)
   }
-  
+
   const handleWriteResult = async () => {
     const starknet = await connect()
     if (!starknet) {
@@ -322,7 +340,9 @@ const ChessGame: React.FC<{ chessData: ChessData; gameAddress: string }> = ({
       <h3>Move #{chessData.state.fullmoveClock}</h3>
       <h3>Result: {finalities[chessData.finality]}</h3>
       <button onClick={handleWriteResult}>Write Result</button>
-      <p>Use this button to set the result, when the current position is final</p>
+      <p>
+        Use this button to set the result, when the current position is final
+      </p>
       <Chessboard
         position={chessData.state.fen}
         onPieceDrop={(source, target, piece) => {
