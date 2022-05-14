@@ -151,7 +151,7 @@ end
 @view
 func get_initial_state{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
-        range_check_ptr}(i : felt) -> (player : felt):
+        range_check_ptr}() -> (state : felt):
     let (state) = initial_state.read()
     return (state=state)
 end
