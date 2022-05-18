@@ -517,12 +517,12 @@ func make_move(board: felt*, move: Move, meta: Meta) -> (new_board: felt*):
     end
     if serialized_move == 40600:
         let (local extra_board : felt*) = alloc()
-        calculate_new_board (new_board, extra_board, 63, 7, 5, WRook)
+        calculate_new_board (new_board, extra_board, 63, 7, 5, BRook)
         return (new_board = extra_board)
     end
     if serialized_move == 40200:
         let (local extra_board : felt*) = alloc()
-        calculate_new_board (new_board, extra_board, 63, 0, 3, WRook)
+        calculate_new_board (new_board, extra_board, 63, 0, 3, BRook)
         return (new_board = extra_board)
     end
 
