@@ -37,11 +37,7 @@ const BLACK = 1
 const GOVERNOR = 2
 
 @storage_var
-func players(i : felt) -> (address : felt):
-end
-
-@storage_var
-func hash_state() -> (state : felt):
+func hash_states(i : felt) -> (state : felt):
 end
 
 const PENDING = 0
@@ -50,7 +46,7 @@ const BLACK_WIN = 2
 const DRAW = 3
 
 @storage_var
-func result() -> (status : felt):
+func results(i : felt) -> (status : felt):
 end
 
 # Helper funcs
@@ -141,7 +137,7 @@ func act{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr
         }(state_len : felt, state : felt*,
-        action_len : felt, action : felt*) -> ():
+        action_len : felt, action : felt*) -> (view_len : felt, view : felt*):
     
 end
 
