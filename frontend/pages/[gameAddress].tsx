@@ -372,13 +372,14 @@ const ChessGame: React.FC<{ chessData: ChessData; gameAddress: string }> = ({
           handleMove(source, target, piece)
           return false
         }}
+        boardOrientation={
+          chessData.state.activeColor === Color.White ? "white" : "black"
+        }
       />
       <div className={styles.lightEnclosed}>
         <h1>Chess game</h1>
         <p>
-          <a
-            href={`https://goerli.voyager.online/contract/${gameAddress}`}
-          >
+          <a href={`https://goerli.voyager.online/contract/${gameAddress}`}>
             {shortenAddress(gameAddress)}
           </a>
         </p>{" "}
