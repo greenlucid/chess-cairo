@@ -12,10 +12,10 @@ Format is the following:
 - white address
 - black address
 - governor address
+- white draw request
+- black draw request
 - felt stating the number of FENs following it
 - An array of FENs. Each FEN takes 72 felts. The first one corresponds to the initial state, and all the others are the resultant state after a move.
-
-Two felts signaling the status of draw offer of each color for the current round.
 
 ## Action
 
@@ -40,24 +40,24 @@ Pass the state as with the other functions, but ommitting the first felt for `ga
 - `[game_id]`
 
 ### move
-- `[as_player, only_check, start_x, start_y, end_x, end_y, extra]`
+- `[as_player, only_check, start_y, start_x, end_y, end_x, extra]`
 - `[is_valid]`
 
 ### surrender
 - `[as_player]`
-- `[]`
+- `[result]`
 
 ### offer_draw
 - `[as_player]`
-- `[]`
+- `[result]`
 
 ### force_threefold_draw
 - `[as_player, a, b]`
-- `[]`
+- `[result]`
 
 ### force_fifty_moves_draw
 - `[as_player]`
-- `[]`
+- `[result]`
 
 ### write_result
 - `[]`

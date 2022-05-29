@@ -15,13 +15,12 @@ func assert_positions(state : felt*, state_pointer : felt, positions : felt*, i 
     return ()
 end
 
-const FEN_COUNT_OFFSET = 4
+const FEN_COUNT_OFFSET = 6
 const FELTS_PER_FEN = 72
 
-func get_latest_fen(state_len : felt, state : felt*) -> (fen_state : State):
+func get_n_fen(n : felt, state : felt*) -> (fen_state : State):
     alloc_locals
-    let fen_count = [state + FEN_COUNT_OFFSET]
-    local last_fen_start = FEN_COUNT_OFFSET + FELTS_PER_FEN * fen_count
+    local last_fen_start = FEN_COUNT_OFFSET + FELTS_PER_FEN * n
 
     let (local positions) = alloc()
     assert_positions(state, last_fen_start, positions, 0)
@@ -39,3 +38,9 @@ func get_latest_fen(state_len : felt, state : felt*) -> (fen_state : State):
         castling_k, castling_q, passant, halfmove_clock, fullmove_clock)
     return (fen_state)
 end
+
+func get_last_fen(state : felt*) -> (fen_state : State):
+    let last_fen_n = [state + FEN_COUNT_OFFSET] - 1
+    let (fen_state) = get_n_fen(last_fen_n, state)
+    return (fen_state)
+end 
