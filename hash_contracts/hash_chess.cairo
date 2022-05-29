@@ -50,6 +50,38 @@ end
 func games(i : felt) -> (game : Game):
 end
 
+@event
+func create_game_called(game_id : felt, state_len : felt, state : felt*):
+end
+
+@event
+func move_called(game_id : felt, move : Move):
+end
+
+@event
+func surrender_called(game_id : felt, as_player : felt):
+end
+
+@event
+func offer_draw_called(game_id : felt, as_player : felt):
+end
+
+@event
+func force_threefold_draw_called(game_id : felt):
+end
+
+@event
+func force_fifty_moves_draw_called(game_id : felt):
+end
+
+@event
+func write_result_called(game_id : felt, result : felt):
+end
+
+@event
+func force_result_called(game_id : felt, result : felt):
+end
+
 ### This function doesn't validate the state
 func create_game{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
@@ -69,12 +101,13 @@ func create_game{
 
     ### Create the game
 
-    # todo emit event of the game
-
     let game = Game(hash_state=hash_state, result=0)
 
     games.write(game_id, game)
     game_count.write(game_id + 1)
+
+    # event
+    create_game_called.emit(game_id, state_len, state)
 
     return (game_id=game_id)
 end
@@ -88,6 +121,10 @@ func write_result{
     let (game) = games.read(game_id)
     let game = Game(hash_state=game.hash_state, result=result)
     games.write(game_id, game)
+
+    # event
+    write_result_called.emit(game_id, result)
+
     return (result)
 end
 
@@ -103,6 +140,10 @@ func force_result{
 
     let game = Game(hash_state=game.hash_state, result=forced_result)
     games.write(game_id, game)
+
+    # event
+    force_result_called.emit(game_id, forced_result)
+
     return (forced_result)
 end
 
@@ -135,6 +176,9 @@ func move{
     let hash_state = hash_state_ptr.current_hash
     let game = Game(hash_state=hash_state, result=0)
     games.write(game_id, game)
+
+    move_called.emit(game_id, move_struct)
+
     return (is_valid=is_valid)
 end
 
@@ -145,12 +189,16 @@ func surrender{
         # white surrender, so it's black win
         let game : Game = Game(hash_state=hash_state, result=BLACK_WIN)
         games.write(game_id, game)
+        # event
+        surrender_called.emit(game_id, as_player)
         return (BLACK_WIN)
     end
 
     ## so, as player is black. white win.
     let game : Game = Game(hash_state=hash_state, result=WHITE_WIN)
     games.write(game_id, game)
+    # event
+    surrender_called.emit(game_id, as_player)
     return (WHITE_WIN)
 end
 
@@ -180,6 +228,10 @@ func offer_draw{
     let hash_state = hash_state_ptr.current_hash
     let game = Game(hash_state=hash_state, result=PENDING)
     games.write(game_id, game)
+
+    # event
+    offer_draw_called.emit(game_id, as_player)
+
     return (PENDING)
 end
 
@@ -206,6 +258,10 @@ func force_threefold_draw{
     ## write result
     let game = Game(hash_state=hash_state, result=DRAW)
     games.write(game_id, game)
+
+    # event
+    force_threefold_draw_called.emit(game_id)
+
     return (DRAW)
 end
 
@@ -219,6 +275,10 @@ func force_fifty_moves_draw{
     ## passed the test, write result
     let game = Game(hash_state=hash_state, result=DRAW)
     games.write(game_id, game)
+
+    # event
+    force_fifty_moves_draw_called.emit(game_id)
+
     return (DRAW)
 end
 

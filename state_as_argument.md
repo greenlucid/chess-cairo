@@ -66,3 +66,43 @@ Pass the state as with the other functions, but ommitting the first felt for `ga
 ### force_result
 - `[result]`
 - `[result]`
+
+## Events
+
+You use events to handle off-chain state availability. They always include `game_id` as their first argument, and then include other data.
+
+### create_game
+
+Can you pass arrays to events?
+
+`create_game_called(game_id, state_len, state)`
+
+### move
+
+`move` is the `Move` struct.
+
+`move_called(game_id, move)`
+
+### surrender
+
+`surrender_called(game_id, as_player)`
+
+### offer_draw
+
+`offer_draw_called(game_id, as_player)`
+
+### force_threefold_draw
+
+`force_threefold_draw_called(game_id)`
+
+### force_fifty_moves_draw
+
+`force_fifty_moves_draw_called(game_id)`
+
+### write_result
+
+`write_result_called(game_id, result)`
+
+### force_result
+
+`force_result(game_id, result)`
