@@ -1,0 +1,16 @@
+{
+  "network": "goerli-alpha",
+  "sources": [
+    {
+      "contract": "0x072231615fedc103a48b25e1cf88e9f6fe397190228353cb03fd661504401269",
+      "start": 216563,
+      "deploy_fn": "handleDeploy",
+      "events": [
+        {
+          "name": "new_post",
+          "fn": "handleNewPost"
+        }
+      ]
+    }
+  ]
+}
