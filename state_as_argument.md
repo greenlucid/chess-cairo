@@ -1,3 +1,28 @@
+```
+                ┌───────────Frontend ──────────┐
+                │                              │
+                │                              │
+
+┌──────────────────► execute          fetch  ◄────────────────────┐
+│                                                                 │
+│               │                              │                  │
+│               └──────────────────────────────┘                  │
+│                                                                 │
+│  ┌───────────Contract────────┐   ┌────Checkpoint─────────────┐  |
+│  │                           │   │                           │  ▲
+▼                              │   │                              │
+O────act(state, action)        │   │     database ────►graphql────O
+      │                        │   │      ▲
+   │  │                        │   │      │ │                  │
+   │  .  internal_state        │   │      │ │                  │
+   │  N    ▲                   │   │      │ │                  │
+   │  .    │ │                 │   │      │ │                  │
+   │  │      ▼                 │   │        ▼                  │
+   │  └─► methodN ────► eventN - - - ─► handleEventN           │
+   │                           │   │                           │
+   └───────────────────────────┘   └───────────────────────────┘
+```
+
 ## Rationales
 
 Pedersen are pretty cheap. Bitwise are pretty expensive.

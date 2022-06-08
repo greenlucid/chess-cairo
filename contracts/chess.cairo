@@ -23,7 +23,7 @@ from contracts.structs import State, Move, Square
 
 from contracts.advance_state import advance_state
 from contracts.decoder import get_last_fen, get_n_fen
-from contracts.encoder import append_fen, copy_array
+from contracts.encoder import append_fen, copy_array, fen_to_array
 from contracts.service import (
     check_legality,
     calculate_result
@@ -55,7 +55,7 @@ func create_game_called(game_id : felt, state_len : felt, state : felt*):
 end
 
 @event
-func move_called(game_id : felt, move : Move):
+func move_called(game_id : felt, fen_len : felt, fen : felt*):
 end
 
 @event
@@ -168,6 +168,7 @@ func move{
         return (is_valid=is_valid)
     end
     # write it
+    assert is_valid = 1
     let (new_fen_state) = advance_state(fen_state, move_struct)
     let (new_state_len, new_state) = append_fen(state_len, state, new_fen_state)
 
@@ -177,7 +178,8 @@ func move{
     let game = Game(hash_state=hash_state, result=0)
     games.write(game_id, game)
 
-    move_called.emit(game_id, move_struct)
+    let (emission_fen) = fen_to_array(new_fen_state)
+    move_called.emit(game_id, 72, emission_fen)
 
     return (is_valid=is_valid)
 end
