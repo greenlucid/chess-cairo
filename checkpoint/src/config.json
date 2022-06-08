@@ -7,8 +7,36 @@
       "deploy_fn": "handleDeploy",
       "events": [
         {
-          "name": "new_post",
-          "fn": "handleNewPost"
+          "name": "create_game_called",
+          "fn": "handleCreateGame"
+        },
+        {
+          "name": "move_called",
+          "fn": "handleMove"
+        },
+        {
+          "name": "surrender_called",
+          "fn": "handleSurrender"
+        },
+        {
+          "name": "offer_draw_called",
+          "fn": "handleOfferDraw"
+        },
+        {
+          "name": "force_threefold_draw_called",
+          "fn": "handleForceThreefoldDraw"
+        },
+        {
+          "name": "force_fifty_moves_draw_called",
+          "fn": "handleForceFiftyMovesDraw"
+        },
+        {
+          "name": "write_result_called",
+          "fn": "handleWriteResult"
+        },
+        {
+          "name": "force_result_called",
+          "fn": "handleForceResult"
         }
       ]
     }

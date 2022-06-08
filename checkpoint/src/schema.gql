@@ -1,0 +1,7 @@
+
+type Game {
+  id: Int!
+  state: [Int!]!
+  valid: Boolean!
+  result: Int! # 0 draw, 1 whitewin, 2 blackwin, 3 draw
+}
