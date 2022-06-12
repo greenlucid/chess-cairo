@@ -1,7 +1,5 @@
 import { AsyncMySqlPool, CheckpointWriters } from "@snapshot-labs/checkpoint"
-import { hexStrArrToStr, toAddress } from "./utils"
 
-// i dont know mysql so im just mocking this
 const getGame = async ({
   gameId,
   mysql,
@@ -9,12 +7,23 @@ const getGame = async ({
   gameId: number
   mysql: AsyncMySqlPool
 }) => {
-  return {
+  const game = await mysql.queryAsync("SELECT * FROM games WHERE gameId = ?;", [
     gameId,
-    state: [0, 1, 2, 4, 5, 6, 7, 8, 9, 10],
-    valid: true,
-    result: 0,
-  }
+  ])
+  return game
+}
+
+const storeGame = async ({
+  game,
+  mysql,
+}: {
+  game: any
+  mysql: AsyncMySqlPool
+}) => {
+  await mysql.queryAsync(
+    "UPDATE games SET state = ?, result = ? WHERE gameId = ?;",
+    [game.state, game.result, game.gameId]
+  )
 }
 
 export const writers: CheckpointWriters = {
@@ -30,11 +39,12 @@ export const writers: CheckpointWriters = {
     const state = [gameId, ...receipt.events.slice(2).map((s) => Number(s))]
 
     // naive. just check if len is 72 * n + 7
-    const valid = state.length % 72 === 7
+    const valid = state.length % 72 === 7 && state.length > 7
 
     const game = {
       gameId,
       state,
+      result: 0,
       valid,
     }
 
@@ -54,10 +64,8 @@ export const writers: CheckpointWriters = {
       ...game.state,
       ...receipt.events.slice(1).map((s) => Number(s)),
     ]
-    // todo save
-    await mysql.queryAsync(`UPDATE games SET ? WHERE gameId = ${gameId}`, [
-      game,
-    ])
+
+    await storeGame({ game, mysql })
   },
 
   handleSurrender: async ({ receipt, mysql }) => {
@@ -67,6 +75,10 @@ export const writers: CheckpointWriters = {
     const result = asPlayer === 0 ? 2 : 1
 
     // edit with result and save
+    await mysql.queryAsync("UPDATE games SET result = ? WHERE gameId = ?;", [
+      result,
+      gameId,
+    ])
   },
 
   handleOfferDraw: async ({ receipt, mysql }) => {
@@ -85,7 +97,8 @@ export const writers: CheckpointWriters = {
       // write your draw offer
       game.state[4 + asPlayer] = 1
     }
-    // edit and save
+
+    await storeGame({ game, mysql })
   },
 
   handleForceThreefoldDraw: async ({ receipt, mysql }) => {
@@ -94,7 +107,7 @@ export const writers: CheckpointWriters = {
 
     game.result = 3
 
-    // save
+    await storeGame({ game, mysql })
   },
 
   handleForceFiftyMovesDraw: async ({ receipt, mysql }) => {
@@ -103,7 +116,7 @@ export const writers: CheckpointWriters = {
 
     game.result = 3
 
-    // save
+    await storeGame({ game, mysql })
   },
 
   handleWriteResult: async ({ receipt, mysql }) => {
@@ -113,7 +126,7 @@ export const writers: CheckpointWriters = {
 
     game.result = result
 
-    // save
+    await storeGame({ game, mysql })
   },
 
   handleForceResult: async ({ receipt, mysql }) => {
@@ -123,6 +136,6 @@ export const writers: CheckpointWriters = {
 
     game.result = result
 
-    // save
+    await storeGame({ game, mysql })
   },
 }
