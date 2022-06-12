@@ -1,15 +1,15 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.alloc import alloc
 
-from core import (
+from contracts.core import (
     is_legal_move,
     make_move,
     calculate_status
 )
 
-from chess_utils import get_square
+from contracts.chess_utils import get_square
 
-from structs import (
+from contracts.structs import (
     State,
     Move,
     Meta,

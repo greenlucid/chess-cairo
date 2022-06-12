@@ -1,7 +1,7 @@
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.bitwise import bitwise_and
 
-from pow2 import pow2
+from contracts.pow2 import pow2
 
 func bits_at{
         bitwise_ptr : BitwiseBuiltin*, range_check_ptr

@@ -1,62 +1,46 @@
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin
 from starkware.cairo.common.alloc import alloc
 
-from structs import (
+from contracts.structs import (
     State
 )
 
-from bit_helper import (
-    bits_at,
-    bit_at
-)
+const N_POSITIONS = 64
 
-func decode_pos{
-        bitwise_ptr : BitwiseBuiltin*, range_check_ptr
-        }(encoded_state : felt, arr : felt*, offset : felt, size : felt) -> (offset : felt):
-    if size == 0:
-        return (offset=offset)
+func assert_positions(state : felt*, state_pointer : felt, positions : felt*, i : felt) -> ():
+    if i == N_POSITIONS:
+        return ()
     end
-    
-    let (bit) = bit_at(el=encoded_state, offset=offset)
-    # there's no piece.
-    if bit == 0:
-        assert [arr] = 0
-        # maybe this needs to be local, test later
-        let (new_offset) = decode_pos(encoded_state, arr+1, offset+1, size-1)
-        return (offset=new_offset)
-    end
-    # else, it's a piece. pieces take 5 spaces.
-    let (bits) = bits_at(el=encoded_state, offset=offset, size=5)
-    assert [arr] = bits
-    let (new_offset) = decode_pos(encoded_state, arr+1, offset+5, size-1)
-    return (offset=new_offset)
+    assert [positions + i] = [state + state_pointer + i]
+    assert_positions(state, state_pointer, positions, i + 1)
+    return ()
 end
 
-func decode_active_color{
-        bitwise_ptr : BitwiseBuiltin*, range_check_ptr
-        }(encoded_state : felt, offset : felt) -> (active_color : felt):
-    let (bit) = bit_at(el=encoded_state, offset=offset)
-    return (active_color=bit)
-end
+const FEN_COUNT_OFFSET = 6
+const FELTS_PER_FEN = 72
 
-func decode_state{
-        bitwise_ptr : BitwiseBuiltin*, range_check_ptr
-        }(encoded_state : felt) -> (state : State):
+func get_n_fen(n : felt, state : felt*) -> (fen_state : State):
     alloc_locals
-    let (positions) = alloc()
-    let (local pos_offset) = decode_pos(encoded_state, arr=positions, offset=0, size=64)
-    # offsets are not variable from this point, so they are hardcoded as magic numbers
-    let (local active_color) = bit_at(encoded_state, pos_offset) # 1 bit
-    let (local castling_K) = bit_at(encoded_state, pos_offset+1) # 1 bit
-    let (local castling_Q) = bit_at(encoded_state, pos_offset+2) # 1 bit
-    let (local castling_k) = bit_at(encoded_state, pos_offset+3) # 1 bit
-    let (local castling_q) = bit_at(encoded_state, pos_offset+4) # 1 bit
-    let (local passant) = bits_at(encoded_state, pos_offset+5, size=4) # 4 bits
-    let (local halfmove_clock) = bits_at(encoded_state, pos_offset+9, size=7) # 7 bits
-    let (local fullmove_clock) = bits_at(encoded_state, pos_offset+16, size=13) # 13 bits
+    local last_fen_start = FEN_COUNT_OFFSET + FELTS_PER_FEN * n
 
-    local state : State = State(positions, active_color, castling_K, castling_Q,
+    let (local positions) = alloc()
+    assert_positions(state, last_fen_start, positions, 0)
+    tempvar data_start = last_fen_start + N_POSITIONS
+    local active_color = [state + data_start]
+    local castling_K = [state + data_start + 1]
+    local castling_Q = [state + data_start + 2]
+    local castling_k = [state + data_start + 3]
+    local castling_q = [state + data_start + 4]
+    local passant = [state + data_start + 5]
+    local halfmove_clock = [state + data_start + 6]
+    local fullmove_clock = [state + data_start + 7]
+
+    local fen_state : State = State(positions, active_color, castling_K, castling_Q,
         castling_k, castling_q, passant, halfmove_clock, fullmove_clock)
-
-    return (state=state)
+    return (fen_state)
 end
+
+func get_last_fen(state : felt*) -> (fen_state : State):
+    let last_fen_n = [state + FEN_COUNT_OFFSET] - 1
+    let (fen_state) = get_n_fen(last_fen_n, state)
+    return (fen_state)
+end 

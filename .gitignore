@@ -8,3 +8,4 @@ tests
 127.0.0.1.*
 node.json
 .env
+accounts.json
