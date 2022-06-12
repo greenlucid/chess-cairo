@@ -1,13 +1,19 @@
-import { AsyncMySqlPool, CheckpointWriters } from '@snapshot-labs/checkpoint';
-import { hexStrArrToStr, toAddress } from './utils';
+import { AsyncMySqlPool, CheckpointWriters } from "@snapshot-labs/checkpoint"
+import { hexStrArrToStr, toAddress } from "./utils"
 
 // i dont know mysql so im just mocking this
-const getGame = async ({gameId, mysql}: {gameId: number, mysql: AsyncMySqlPool}) => {
+const getGame = async ({
+  gameId,
+  mysql,
+}: {
+  gameId: number
+  mysql: AsyncMySqlPool
+}) => {
   return {
     gameId,
     state: [0, 1, 2, 4, 5, 6, 7, 8, 9, 10],
     valid: true,
-    result: 0
+    result: 0,
   }
 }
 
@@ -21,37 +27,43 @@ export const writers: CheckpointWriters = {
     const gameId = Number(receipt.events[0])
     // const arrLen = BigInt(receipt.events[1]) is unused
 
-    const state = [gameId, ...receipt.events.slice(2).map(s => Number(s))]
+    const state = [gameId, ...receipt.events.slice(2).map((s) => Number(s))]
 
     // naive. just check if len is 72 * n + 7
-    const valid = (state.length % 72) === 7
+    const valid = state.length % 72 === 7
 
     const game = {
       gameId,
       state,
-      valid
+      valid,
     }
 
-    await mysql.queryAsync('INSERT IGNORE INTO games SET ?', [game]);
+    await mysql.queryAsync(`INSERT IGNORE INTO games SET ?`, [game])
   },
 
   handleMove: async ({ receipt, mysql }) => {
     const gameId = Number(receipt.events[0])
 
-    const game = await getGame({gameId, mysql})
+    const game = await getGame({ gameId, mysql })
     // reset draw offers
     game.state[4] = 0
     game.state[5] = 0
     // update fenCount (7th meta value), then append the obtained array.
     game.state[6]++
-    game.state = [...game.state, ...receipt.events.slice(1).map(s => Number(s))]
+    game.state = [
+      ...game.state,
+      ...receipt.events.slice(1).map((s) => Number(s)),
+    ]
     // todo save
+    await mysql.queryAsync(`UPDATE games SET ? WHERE gameId = ${gameId}`, [
+      game,
+    ])
   },
 
   handleSurrender: async ({ receipt, mysql }) => {
     const gameId = Number(receipt.events[0])
     const asPlayer = Number(receipt.events[1])
-    // if player is white, blackwin. otherwise, whitewin 
+    // if player is white, blackwin. otherwise, whitewin
     const result = asPlayer === 0 ? 2 : 1
 
     // edit with result and save
@@ -61,8 +73,8 @@ export const writers: CheckpointWriters = {
     const gameId = Number(receipt.events[0])
     const asPlayer = Number(receipt.events[1])
 
-    const game = await getGame({gameId, mysql})
-    
+    const game = await getGame({ gameId, mysql })
+
     // check if the other player has surrendered
     const otherplayer = asPlayer === 0 ? 1 : 0
     const drawOffers = game.state.slice(4, 6)
@@ -76,41 +88,41 @@ export const writers: CheckpointWriters = {
     // edit and save
   },
 
-  handleForceThreefoldDraw: async ({receipt, mysql}) => {
+  handleForceThreefoldDraw: async ({ receipt, mysql }) => {
     const gameId = Number(receipt.events[0])
-    const game = await getGame({gameId, mysql})
+    const game = await getGame({ gameId, mysql })
 
     game.result = 3
 
     // save
   },
 
-  handleForceFiftyMovesDraw: async ({receipt, mysql}) => {
+  handleForceFiftyMovesDraw: async ({ receipt, mysql }) => {
     const gameId = Number(receipt.events[0])
-    const game = await getGame({gameId, mysql})
+    const game = await getGame({ gameId, mysql })
 
     game.result = 3
 
     // save
   },
 
-  handleWriteResult: async ({receipt, mysql}) => {
+  handleWriteResult: async ({ receipt, mysql }) => {
     const gameId = Number(receipt.events[0])
     const result = Number(receipt.events[1])
-    const game = await getGame({gameId, mysql})
+    const game = await getGame({ gameId, mysql })
 
     game.result = result
 
     // save
   },
 
-  handleForceResult: async ({receipt, mysql}) => {
+  handleForceResult: async ({ receipt, mysql }) => {
     const gameId = Number(receipt.events[0])
     const result = Number(receipt.events[1])
-    const game = await getGame({gameId, mysql})
+    const game = await getGame({ gameId, mysql })
 
     game.result = result
 
     // save
-  }
-};
+  },
+}
