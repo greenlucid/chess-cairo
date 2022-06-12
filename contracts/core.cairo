@@ -260,12 +260,24 @@ func get_guidance_vector(
                 promotion_flag = promotion_flag, new_reference_square = initial_square)
             return(guidance_vector = guidance_vector)
         end
-        # Only move : pattern.type = 2, final_square = 4 (empty) - Only for pawns
-        tempvar only_move = (pattern_type - 1) * (final_square_content - 3)
-        if only_move == 1:
+        # Only move 1 : pattern.type = 0, final_square = 4 (empty) - Only for pawns
+        tempvar only_move_1 = (pattern_type + 1) * (final_square_content - 3)
+        if only_move_1 == 1:
             let guidance_vector : Recursive_Vector = Recursive_Vector (stop_flag = 1, save_flag = 1, castle_k_flag = 0, castle_q_flag = 0,
                 promotion_flag = promotion_flag, new_reference_square = initial_square)
             return(guidance_vector = guidance_vector)
+        end
+        # Only move 2 : pattern.type = 2, middle_square = 4, final_square = 4 (empty) - Only for pawns
+        tempvar only_move_2 = (pattern_type - 1) * (final_square_content - 3)
+        if only_move_2 == 1:
+            tempvar middle_square_row = (initial_square.row + final_square.row)/2
+            let (middle_square_index) = board_index(Square(middle_square_row, initial_square.col))
+            let only_2_move_middle_sq = [board + middle_square_index]
+            if only_2_move_middle_sq == 0:
+                let guidance_vector : Recursive_Vector = Recursive_Vector (stop_flag = 1, save_flag = 1, castle_k_flag = 0, castle_q_flag = 0,
+                    promotion_flag = promotion_flag, new_reference_square = initial_square)
+                return(guidance_vector = guidance_vector)
+            end
         end
         # Checking first if the pawn is on the fifth (relative) row, so en passant is possible
         tempvar initial_square_relative_row = initial_square.row - active_color 
@@ -505,12 +517,12 @@ func make_move(board: felt*, move: Move, meta: Meta) -> (new_board: felt*):
     end
     if serialized_move == 40600:
         let (local extra_board : felt*) = alloc()
-        calculate_new_board (new_board, extra_board, 63, 7, 5, WRook)
+        calculate_new_board (new_board, extra_board, 63, 7, 5, BRook)
         return (new_board = extra_board)
     end
     if serialized_move == 40200:
         let (local extra_board : felt*) = alloc()
-        calculate_new_board (new_board, extra_board, 63, 0, 3, WRook)
+        calculate_new_board (new_board, extra_board, 63, 0, 3, BRook)
         return (new_board = extra_board)
     end
 
@@ -597,6 +609,12 @@ func is_legal_move (board: felt*, meta: Meta, move: Move) -> (is_legal: felt):
 
     let new_meta : Meta = Meta (new_active_color, meta.castling_K, meta.castling_Q, meta.castling_k, meta.castling_q, meta.passant)
     let (attack_list, attack_list_size) = calculate_all_attacks (new_board, 0, 0, new_meta)
+
+    let (moves_list, moves_list_size) = calculate_moves_wrapper(board, meta, move.origin)
+    let (is_in_moves_list) = contains_move (moves_list, moves_list_size, move)
+    if is_in_moves_list == 0:
+        return (is_legal = 0)
+    end
 
     # Check if king is attacked
     tempvar colored_king = WKing + meta.active_color * 8 
