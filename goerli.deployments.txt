@@ -1,1 +1,3 @@
 0x072231615fedc103a48b25e1cf88e9f6fe397190228353cb03fd661504401269:artifacts/abis/chess.json
+0x02104afce219c5f65ff9672135b0aa7e391cb322e393f8d74fe92a9c6b8a0dd7:artifacts/abis/chess.json
+0x03a02b45734d0f68e7304a7c82ffb3ee9410ec6f15bfef7e2c62ee757c720295:artifacts/abis/chess.json

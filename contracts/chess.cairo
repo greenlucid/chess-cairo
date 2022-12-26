@@ -82,6 +82,14 @@ end
 func force_result_called(game_id : felt, result : felt):
 end
 
+@view
+func see_result{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,
+        range_check_ptr}(game_id : felt) -> (result : felt):
+    let (game) = games.read(game_id)
+    return (game.result)
+end
+
 ### This function doesn't validate the state
 func create_game{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*,

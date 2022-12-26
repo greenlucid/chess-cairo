@@ -6,9 +6,12 @@ import { CompiledContract, ContractFactory, Provider, Abi } from "starknet"
 import { useState } from "react"
 import fullEncodeFen from "../utils/encodeFen"
 
-//import chessCompiled from "../../artifacts/chess.json"
-//import chessAbi from "../../artifacts/abis/chess.json"
 import Link from "next/link"
+import { connect } from "@argent/get-starknet"
+import Image from "next/image"
+
+const contractAddress =
+  "0x03a02b45734d0f68e7304a7c82ffb3ee9410ec6f15bfef7e2c62ee757c720295"
 
 const initialFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
@@ -18,7 +21,7 @@ type CreateGameParams = {
   governor: string
   fen: string
 }
-/*
+
 const CreateGameForm: React.FC<any> = ({ deployGame, loading }: any) => {
   if (loading) return null
   return (
@@ -56,7 +59,6 @@ const CreateGameForm: React.FC<any> = ({ deployGame, loading }: any) => {
 
 const CreateGame: React.FC = () => {
   const [loading, setLoading] = useState<boolean>()
-  const [gameAddress, setGameAddress] = useState<string>()
 
   const deployGame = async (values: CreateGameParams) => {
     setLoading(true)
@@ -66,20 +68,34 @@ const CreateGame: React.FC = () => {
 
     const provider = new Provider({ network: "goerli-alpha" })
     console.log(provider)
-    const chessCairoFactory = new ContractFactory(
-      chessCompiled as CompiledContract,
-      provider,
-      chessAbi as Abi
-    )
 
-    chessCairoFactory
-      .deploy([values.white, values.black, values.governor, encodedFen])
-      .then((contract) => {
-        console.log(contract)
-        setLoading(false)
-        setGameAddress(contract.address)
-      })
-      .catch((error) => console.log(error))
+    const starknet = await connect()
+    if (!starknet) {
+      throw Error(
+        "User rejected wallet selection or silent connect found nothing"
+      )
+    }
+
+    await starknet.enable({ showModal: true })
+
+    // check state_as_argument.md to understand the format
+    const stateArray = [
+      // regular states have a gameId here, but we make an exception for game creation.
+      values.white,
+      values.black,
+      values.governor,
+      0, // white draw request
+      0, // black draw request
+      1, // number of fens states following (72 len each)
+      ...encodedFen,
+    ]
+    const result = await starknet.account.execute({
+      contractAddress,
+      entrypoint: "act",
+      calldata: [stateArray.length, ...stateArray, 0],
+    })
+    // i need to see the return from creating the game! how?
+    // then, you will redirect to the gameId. but, since you can't do that, ....
   }
 
   return (
@@ -87,7 +103,8 @@ const CreateGame: React.FC = () => {
       <h2 className={styles.lightEnclosed}>Create game</h2>
       <CreateGameForm deployGame={deployGame} loading={loading} />
       {loading && (
-        <img
+        // eslint-disable-next-line jsx-a11y/alt-text
+        <Image
           src={
             "https://icon-library.com/images/loading-icon-transparent-background/loading-icon-transparent-background-12.jpg"
           }
@@ -95,18 +112,9 @@ const CreateGame: React.FC = () => {
           width={100}
         />
       )}
-      {gameAddress && (
-        <>
-          <p>Deployed! Click the address to start</p>
-          <p>
-            <a href={`/${gameAddress}`}>{gameAddress}</a>
-          </p>
-        </>
-      )}
     </div>
   )
 }
-*/
 
 const AlternativeExplainer = () => {
   return (
